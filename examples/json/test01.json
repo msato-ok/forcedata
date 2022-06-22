@@ -1,0 +1,39 @@
+{
+  "id": "5973782bdb9a930533b05cb2",
+  "is_active": true,
+  "age": 32,
+  "name": "Logan Keller",
+  "gender": "male",
+  "eye_color": null,
+  "hair_style": {},
+  "salery": 9223372036854775807,
+  "friends": [
+    {
+      "id": 0,
+      "name": "Colon Salazar"
+    },
+    {
+      "id": 1,
+      "name": "French Mcneil"
+    }
+  ],
+  "groups": [
+    1,
+    2,
+    3
+  ],
+  "rooms": [
+    "1-1",
+    "1-2"
+  ],
+  "device": {
+    "android": {
+      "manufacturer": "google",
+      "model": "pixel5"
+    },
+    "ios": {
+      "manufacturer": "apple",
+      "model": "iphone12"
+    }
+  }
+}

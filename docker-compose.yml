@@ -1,0 +1,10 @@
+version: '3.3'
+services:
+  app:
+    build:
+      context: .
+      dockerfile: ./docker/node/Dockerfile
+    image: data-commonality
+    volumes:
+      - .:/app
+    working_dir: /app
