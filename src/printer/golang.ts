@@ -41,6 +41,10 @@ class GolangSubTypeField extends SubTypeField {
       } else {
         t = `[]${t}`;
       }
+    } else {
+      if (this.systemType == SystemType.Object) {
+        t = `*${t}`;
+      }
     }
     return t;
   }
@@ -54,7 +58,7 @@ class GolangSubType extends SubTypeBase {
   private _goFields: GolangSubTypeField[] = [];
 
   constructor(private _org: SubTypeBase) {
-    super(util.pascalCase(_org.typeName));
+    super(_org.typeName);
     for (const field of _org.fields) {
       const goField = new GolangSubTypeField(field);
       this._goFields.push(goField);
@@ -83,7 +87,7 @@ type Int64OrNull interface{}
 type BoolOrNull interface{}
 
 <%_ goSubTypes.forEach((goSubType) => { %>
-type <%= goSubType.typeName %> struct {
+type <%= goSubType.typeName.name %> struct {
   <%_ goSubType.fields.forEach((goField) => { _%>
     <%= goField.fieldName %> <%= goField.typeName %> <%- goField.jsonTag %>
   <%_ }); _%>

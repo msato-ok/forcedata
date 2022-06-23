@@ -17,6 +17,15 @@ export class Cache<T extends HasKey> {
     this._cache.set(obj.key, obj);
   }
 
+  unique(obj: T): T {
+    const cached = this._cache.get(obj.key);
+    if (cached) {
+      return cached;
+    }
+    this.add(obj);
+    return obj;
+  }
+
   addAll(objs: T[]) {
     for (const obj of objs) {
       this.add(obj);
@@ -29,6 +38,59 @@ export class Cache<T extends HasKey> {
 
   values(): T[] {
     return Array.from(this._cache.values());
+  }
+}
+
+export class ObjectPath implements HasKey {
+  private static _cache = new Cache<ObjectPath>();
+
+  protected _path: string;
+
+  protected constructor(path: string) {
+    this._path = path;
+  }
+
+  get isRoot(): boolean {
+    return this._path == '';
+  }
+
+  get key(): string {
+    return this._path;
+  }
+
+  get path(): string {
+    return this._path;
+  }
+
+  append(suffixPath: string): ObjectPath {
+    if (!this.isRoot) {
+      suffixPath = '.' + suffixPath;
+    }
+    return new ObjectPath(this._path + suffixPath);
+  }
+
+  appendArrayIndex(i: number): ObjectPath {
+    return new ObjectPath(`${this._path}[${i}]`);
+  }
+
+  static unique(path: string): ObjectPath {
+    const obj = new ObjectPath(path);
+    return this._cache.unique(obj);
+  }
+}
+
+export class ObjectPathNoArrayIndex extends ObjectPath {
+  private static _cacheNoArrayIndex = new Cache<ObjectPathNoArrayIndex>();
+
+  static unique(path: string): ObjectPath {
+    const obj = new ObjectPath(path);
+    return this._cacheNoArrayIndex.unique(obj);
+  }
+
+  static fromObjectPath(opath: ObjectPath): ObjectPathNoArrayIndex {
+    // 末尾に hoge.fuga[0] と配列の添字が付いてる場合は削除する
+    const path = opath.path.replace(/(.*?)\[.*?\]/g, '$1');
+    return this.unique(path);
   }
 }
 

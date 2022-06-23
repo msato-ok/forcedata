@@ -1,14 +1,15 @@
 import path from 'path';
-import { SubType, SubTypeField } from './sub_type';
-import { HasKey, InvalidArgumentError } from '../common/base';
+import { SubTypeName, SubType, SubTypeField } from './sub_type';
+import { HasKey } from '../common/base';
 import { IDataFile } from './yml_type';
+import { ObjectPath, ObjectPathNoArrayIndex } from '../common/base';
 
 export class DataFile implements HasKey {
-  readonly baseFile: string;
-  // private _dataStr: string = ""
+  private _cachefields = new Map<ObjectPathNoArrayIndex, SubTypeField>();
+  private _cacheValues = new Map<ObjectPath, unknown>();
 
-  fieldPathType = new Map<string, SubTypeField>();
-  fieldPathVal = new Map<string, unknown>();
+  readonly baseFile: string;
+
   similar: SimilarData | null = null;
   mainType: SubType | null = null;
 
@@ -20,34 +21,45 @@ export class DataFile implements HasKey {
     return this.baseFile;
   }
 
-  createSubType(jsonPath = ''): SubType {
-    if (jsonPath == '') {
-      this.mainType = new SubType(this.rootDataName);
+  getField(opath: ObjectPath): SubTypeField | undefined {
+    const pathsNoIndex = ObjectPathNoArrayIndex.fromObjectPath(opath);
+    return this._cachefields.get(pathsNoIndex);
+  }
+
+  setField(opath: ObjectPath, field: SubTypeField) {
+    const pathsNoIndex = ObjectPathNoArrayIndex.fromObjectPath(opath);
+    return this._cachefields.set(pathsNoIndex, field);
+  }
+
+  getValue(opath: ObjectPath): unknown | undefined {
+    return this._cacheValues.get(opath);
+  }
+
+  setValue(opath: ObjectPath, val: unknown) {
+    return this._cacheValues.set(opath, val);
+  }
+
+  get objectPaths(): ObjectPath[] {
+    return Array.from(this._cacheValues.keys());
+  }
+
+  createSubType(opath: ObjectPathNoArrayIndex): SubType {
+    if (opath.isRoot) {
+      this.mainType = new SubType(new SubTypeName(this.rootDataName));
       return this.mainType;
     } else {
-      let typeName = jsonPath.split('.').pop();
-      if (!typeName) {
-        throw new InvalidArgumentError(
-          `jsonPath が空文字以外の場合は、json のプロパティを "." 区切りで表現されている必要がある: jsonPath=${jsonPath}`
-        );
-      }
-      // 末尾に hoge.fuga[0] と配列の添字が付いてる場合は削除する
-      typeName = typeName.replace(/(.*?)\[.*/, '$1');
+      const typeName = SubTypeName.fromObjectPath(opath);
       return new SubType(typeName);
     }
   }
-
-  // get dataStr(): string {
-  //   return this._dataStr;
-  // }
 
   toYml(): IDataFile {
     const y = {
       file: this.file,
       fieldTypeMap: {},
     } as IDataFile;
-    for (const [fieldPath, fieldType] of Array.from(this.fieldPathType.entries())) {
-      y.fieldTypeMap[fieldPath] = fieldType.typeName;
+    for (const [fieldPath, fieldType] of Array.from(this._cachefields.entries())) {
+      y.fieldTypeMap[fieldPath.path] = fieldType.typeName;
     }
     return y;
   }
@@ -55,6 +67,5 @@ export class DataFile implements HasKey {
 
 export class SimilarData {
   dataFile: DataFile | null = null;
-  diffPropPathVal = new Map<string, unknown>();
-  // dataStr: string | null = null;
+  diffPropPathVal = new Map<ObjectPath, unknown>();
 }

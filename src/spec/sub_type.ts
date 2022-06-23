@@ -1,14 +1,29 @@
 import { HasKey, InvalidArgumentError } from '../common/base';
 import { IYmlSubType, IYmlSubTypeField } from './yml_type';
+import { ObjectPath, ObjectPathNoArrayIndex } from '../common/base';
 import * as util from '../common/util';
+
+export class SubTypeName {
+  constructor(readonly name: string) {}
+
+  static fromObjectPath(opath: ObjectPath): SubTypeName {
+    opath = ObjectPathNoArrayIndex.fromObjectPath(opath);
+    const splited = opath.path.split('.').pop();
+    if (!splited || splited.length == 0) {
+      throw new InvalidArgumentError(`op.path がは1文字以上であること: op.path=${opath.path}`);
+    }
+    return new SubTypeName(util.pascalCase(splited));
+  }
+
+  static fromString(path: string): SubTypeName {
+    return this.fromObjectPath(ObjectPathNoArrayIndex.unique(path));
+  }
+}
 
 export class SubTypeBase {
   protected _fields: SubTypeField[] = [];
-  readonly typeName: string;
 
-  constructor(private _typeName: string) {
-    this.typeName = util.pascalCase(_typeName);
-  }
+  constructor(readonly typeName: SubTypeName) {}
 
   get fields(): SubTypeField[] {
     return this._fields;
@@ -17,7 +32,7 @@ export class SubTypeBase {
 
 export class SubType extends SubTypeBase implements HasKey {
   get key(): string {
-    return this.typeName;
+    return this.typeName.name;
   }
 
   addField(field: SubTypeField) {
@@ -29,9 +44,9 @@ export class SubType extends SubTypeBase implements HasKey {
   }
 
   mergeFields(target: SubType) {
-    if (target.typeName != this.typeName) {
+    if (target.typeName.name != this.typeName.name) {
       throw new InvalidArgumentError(
-        `type が異なるので merge できない left=${target.typeName}, right=${this.typeName}`
+        `type が異なるので merge できない left=${target.typeName.name}, right=${this.typeName.name}`
       );
     }
     const fields = new Map<string, SubTypeField>();
@@ -81,13 +96,22 @@ export class SubType extends SubTypeBase implements HasKey {
 
   toYml(): IYmlSubType {
     const ymlSubType = {
-      typeName: this.typeName,
+      typeName: this.typeName.name,
       fields: [],
     } as IYmlSubType;
     for (const f of this.fields) {
       ymlSubType.fields.push(f.toYml());
     }
     return ymlSubType;
+  }
+
+  static fromYml(src: IYmlSubType): SubType {
+    const st = new SubType(SubTypeName.fromString(src.typeName));
+    for (const srcf of src.fields) {
+      const f = SubTypeField.fromYml(srcf);
+      st.addField(f);
+    }
+    return st;
   }
 }
 
@@ -144,6 +168,10 @@ export class SubTypeField implements HasKey {
       isArray: this.isArray,
     } as IYmlSubTypeField;
     return yf;
+  }
+
+  static fromYml(yf: IYmlSubTypeField): SubTypeField {
+    return new SubTypeField(yf.fieldName, yf.systemType, yf.objectName, yf.isArray);
   }
 
   static fromValue(fieldName: string, val: unknown): SubTypeField {
