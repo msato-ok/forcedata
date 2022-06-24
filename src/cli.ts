@@ -14,7 +14,7 @@ program
   .command('json2type <pattern>')
   .description('generate type definition yaml from json')
   .requiredOption('-o, --output <file>', 'output source file')
-  .option('-m, --model', 'root model name')
+  .option('-m, --model <model name>', 'root model name')
   .option('-v, --verbose', 'verbose mode')
   .action((pattern: string, option: ICommandOption): void => {
     const command = new JsonToTypeCommand(option);
@@ -25,8 +25,8 @@ program
   .command('json2go <pattern>')
   .description('generate golang source code from json')
   .requiredOption('-o, --output <file>', 'output source file')
-  .option('-t, --type', 'type definition yaml')
-  .option('-m, --model', 'root model name')
+  .option('-t, --type <file>', 'type definition yaml')
+  .option('-m, --model <model name>', 'root model name')
   .option('-v, --verbose', 'verbose mode')
   .action((pattern: string, option: ICommandOption): void => {
     const command = new JsonToGoCommand(option);

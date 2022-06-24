@@ -1,8 +1,8 @@
 import fs from 'fs';
 import { DataFile, SimilarData } from '../spec/data_file';
 import { SubTypeName, SubType, SubTypeField, SystemType } from '../spec/sub_type';
-import { ObjectPath, ObjectPathNoArrayIndex, Cache, InvalidArgumentError } from '../common/base';
-import { IYmlDefinitions } from '../spec/yml_type';
+import { ObjectPath, ObjectPathNoArrayIndex, Cache, InvalidArgumentError, ValidationError } from '../common/base';
+import { IYmlDefinitions, IDataFile } from '../spec/yml_type';
 
 export class JsonParseResult {
   private _dataFiles: Cache<DataFile> = new Cache<DataFile>();
@@ -16,10 +16,23 @@ export class JsonParseResult {
     for (const ymlSubType of typeDefs.types) {
       this.putSubType(SubType.fromYml(ymlSubType));
     }
+    for (const subType of this._subTypes.values()) {
+      for (const f of subType.fields) {
+        if (f.systemType == SystemType.Object) {
+          if (!this._subTypes.get(f.typeName)) {
+            throw new ValidationError(`${subType.typeName.name}.${f.fieldName} の ${f.objectName} 型は未定義です`);
+          }
+        }
+      }
+    }
   }
 
   putDataFile(dataFile: DataFile) {
     this._dataFiles.add(dataFile);
+  }
+
+  getSubType(typeName: SubTypeName): SubType | undefined {
+    return this._subTypes.get(typeName.name);
   }
 
   get subTypes(): SubType[] {
@@ -48,7 +61,7 @@ export class JsonParser {
     }
   }
 
-  addJson(filePath: string, rootDataName: string) {
+  addJson(filePath: string, rootDataName: string | null) {
     const dataFile = this.createDataFile(filePath, rootDataName);
     this.result.putDataFile(dataFile);
   }
@@ -57,15 +70,30 @@ export class JsonParser {
     for (const dataFile of this.result.dataFiles) {
       this.parseRawData(dataFile, dataFile.rawData, ObjectPath.unique(''));
     }
-    for (const dataFile of this.result.dataFiles) {
+    const revDataFiles = [...this.result.dataFiles];
+    revDataFiles.reverse();
+    for (const dataFile of revDataFiles) {
       this.searchSimilarData(dataFile);
     }
     return this.result;
   }
 
-  private createDataFile(filePath: string, rootDataName: string): DataFile {
+  private createDataFile(filePath: string, rootDataName: string | null): DataFile {
     const text = fs.readFileSync(filePath, 'utf8');
     const rawData = JSON.parse(text) as Record<string, unknown>;
+    let firstDataFile: IDataFile | null = null;
+    if (this.typeDefs) {
+      for (const ymldf of this.typeDefs.dataFiles) {
+        if (filePath == ymldf.file) {
+          firstDataFile = ymldf;
+        } else if (!firstDataFile) {
+          firstDataFile = ymldf;
+        }
+      }
+    }
+    if (firstDataFile != null) {
+      rootDataName = firstDataFile.rootModel;
+    }
     return new DataFile(filePath, rawData, rootDataName);
   }
 
@@ -76,8 +104,7 @@ export class JsonParser {
       for (const ymldf of this.typeDefs.dataFiles) {
         const typeName = ymldf.fieldTypeMap[opathN.path];
         if (typeName) {
-          const subTypeName = SubTypeName.fromString(typeName);
-          const subType = new SubType(subTypeName);
+          const subType = new SubType(SubTypeName.fromString(typeName));
           if (dataFile.file == ymldf.file) {
             return subType;
           } else if (!firstSubType) {
@@ -92,6 +119,29 @@ export class JsonParser {
     return dataFile.createSubType(opathN);
   }
 
+  private getOrCreateField(dataFile: DataFile, opath: ObjectPath, fieldName: string, val: unknown): SubTypeField {
+    const defaultField = SubTypeField.fromValue(fieldName, val);
+    const opathN = ObjectPathNoArrayIndex.fromObjectPath(opath);
+    if (this.typeDefs) {
+      let firstField: SubTypeField | null = null;
+      for (const ymldf of this.typeDefs.dataFiles) {
+        const typeName = ymldf.fieldTypeMap[opathN.path];
+        if (typeName) {
+          const filed = SubTypeField.fromType(fieldName, typeName, defaultField.isArray);
+          if (dataFile.file == ymldf.file) {
+            return filed;
+          } else if (!firstField) {
+            firstField = filed;
+          }
+        }
+      }
+      if (firstField) {
+        return firstField;
+      }
+    }
+    return defaultField;
+  }
+
   private parseRawData(dataFile: DataFile, rawData: unknown, parentPath: ObjectPath) {
     if (rawData == null) {
       throw new InvalidArgumentError(`null のデータは処理できない: ${dataFile.file} / ${parentPath}`);
@@ -101,10 +151,11 @@ export class JsonParser {
     for (const [key, val] of Object.entries(records)) {
       const fieldName = key;
       const paths = parentPath.append(fieldName);
-      const field = SubTypeField.fromValue(fieldName, val);
+      const field = this.getOrCreateField(dataFile, paths, fieldName, val);
       subType.addField(field);
+      dataFile.setField(paths, field);
+      dataFile.setValue(paths, val);
       if (field.systemType == SystemType.Object) {
-        dataFile.setField(paths, field);
         if (field.isArray) {
           const data = val as any[];
           let i = 0;
@@ -121,44 +172,18 @@ export class JsonParser {
           let i = 0;
           for (const datum of data) {
             const pathWithIndex = paths.appendArrayIndex(i);
-            dataFile.setField(pathWithIndex, field);
             dataFile.setValue(pathWithIndex, datum);
             i++;
           }
-        } else {
-          dataFile.setField(paths, field);
-          dataFile.setValue(paths, val);
         }
       }
     }
     this.result.putSubType(subType);
   }
 
-  // private correctDataStr() {
-  //   const removed = new Set<string>();
-  //   for (const subType of this._subTypes.values()) {
-  //     if (subType.fields.length != 0) {
-  //       continue;
-  //     }
-  //     removed.add(subType.typeName);
-  //     for (const dataFile of this._dataFiles.values()) {
-  //       for (const propType of Object.entries(dataFile.propType)) {
-  //         const paths = propType[0];
-  //         const typeName = propType[1];
-  //         if (typeName.indexOf("[]*") == 0) {
-  //         }
-  //         if (subType.fields.length != 0) {
-  //           continue;
-  //         }
-  //         removed.has(subType.typeName);
-  //       }
-  //     }
-  //   }
-  // }
-
   private searchSimilarData(target: DataFile) {
     let maxNotSame = Number.MAX_SAFE_INTEGER;
-    const similar = new SimilarData();
+    let similar: SimilarData | null = null;
     for (const cached of this.result.dataFiles) {
       if (cached == target) {
         continue;
@@ -166,24 +191,30 @@ export class JsonParser {
       if (cached.similar != null) {
         continue;
       }
-      if (cached.mainType == null) {
-        throw new InvalidArgumentError(`${cached.file} には mainType がない`);
+      const cachedSubType = this.result.getSubType(new SubTypeName(cached.rootModel));
+      if (!cachedSubType) {
+        throw new InvalidArgumentError(`${cached.file} には rootModel がない`);
       }
-      if (target.mainType == null) {
-        throw new InvalidArgumentError(`${target.file} には mainType がない`);
+      const targetSubType = this.result.getSubType(new SubTypeName(target.rootModel));
+      if (targetSubType == null) {
+        throw new InvalidArgumentError(`${target.file} には rootModel がない`);
       }
-      if (!cached.mainType.compare(target.mainType)) {
-        continue;
-      }
-      if (cached.objectPaths.length != target.objectPaths.length) {
+      if (!cachedSubType.compare(targetSubType)) {
         continue;
       }
       let notSame = 0;
-      const diffPropPathVal = new Map<ObjectPath, unknown>();
+      const diffValues = new Map<string, unknown>();
       for (const opath of cached.objectPaths) {
+        const field = target.getField(opath);
+        if (!field) {
+          throw new InvalidArgumentError(`${target.file} には ${opath.path} はない`);
+        }
+        if (field.isArray && opath.arrayIndex === undefined) {
+          continue;
+        }
         if (target.getValue(opath) != cached.getValue(opath)) {
           notSame++;
-          diffPropPathVal.set(opath, target.getValue(opath));
+          diffValues.set(opath.path, target.getValue(opath));
         }
       }
       if (notSame == target.objectPaths.length) {
@@ -191,11 +222,10 @@ export class JsonParser {
       }
       if (notSame < maxNotSame) {
         maxNotSame = notSame;
-        similar.dataFile = cached;
-        similar.diffPropPathVal = diffPropPathVal;
+        similar = new SimilarData(cached, diffValues);
       }
     }
-    if (similar.dataFile != null) {
+    if (similar) {
       target.similar = similar;
     }
   }

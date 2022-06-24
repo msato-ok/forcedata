@@ -9,6 +9,7 @@ export interface IYmlDefinitions {
 
 export interface IDataFile {
   file: string;
+  rootModel: string;
   fieldTypeMap: {
     [key: string]: string;
   };

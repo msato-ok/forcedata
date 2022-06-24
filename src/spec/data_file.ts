@@ -5,15 +5,16 @@ import { IDataFile } from './yml_type';
 import { ObjectPath, ObjectPathNoArrayIndex } from '../common/base';
 
 export class DataFile implements HasKey {
-  private _cachefields = new Map<ObjectPathNoArrayIndex, SubTypeField>();
-  private _cacheValues = new Map<ObjectPath, unknown>();
+  private _cachefields = new Map<string, SubTypeField>();
+  private _cacheValues = new Map<string, unknown>();
 
   readonly baseFile: string;
+  readonly rootModel: string;
 
   similar: SimilarData | null = null;
-  mainType: SubType | null = null;
 
-  constructor(readonly file: string, readonly rawData: Record<string, unknown>, readonly rootDataName: string) {
+  constructor(readonly file: string, readonly rawData: Record<string, unknown>, _rootModel: string | null) {
+    this.rootModel = _rootModel == null ? 'Base' : _rootModel;
     this.baseFile = path.basename(file);
   }
 
@@ -23,49 +24,53 @@ export class DataFile implements HasKey {
 
   getField(opath: ObjectPath): SubTypeField | undefined {
     const pathsNoIndex = ObjectPathNoArrayIndex.fromObjectPath(opath);
-    return this._cachefields.get(pathsNoIndex);
+    return this._cachefields.get(pathsNoIndex.path);
   }
 
   setField(opath: ObjectPath, field: SubTypeField) {
     const pathsNoIndex = ObjectPathNoArrayIndex.fromObjectPath(opath);
-    return this._cachefields.set(pathsNoIndex, field);
+    return this._cachefields.set(pathsNoIndex.path, field);
   }
 
   getValue(opath: ObjectPath): unknown | undefined {
-    return this._cacheValues.get(opath);
+    return this._cacheValues.get(opath.path);
   }
 
   setValue(opath: ObjectPath, val: unknown) {
-    return this._cacheValues.set(opath, val);
+    return this._cacheValues.set(opath.path, val);
   }
 
   get objectPaths(): ObjectPath[] {
-    return Array.from(this._cacheValues.keys());
+    const paths = [];
+    for (const path of Array.from(this._cacheValues.keys())) {
+      paths.push(ObjectPath.unique(path));
+    }
+    return paths;
   }
 
   createSubType(opath: ObjectPathNoArrayIndex): SubType {
+    let typeName;
     if (opath.isRoot) {
-      this.mainType = new SubType(new SubTypeName(this.rootDataName));
-      return this.mainType;
+      typeName = new SubTypeName(this.rootModel);
     } else {
-      const typeName = SubTypeName.fromObjectPath(opath);
-      return new SubType(typeName);
+      typeName = SubTypeName.fromObjectPath(opath);
     }
+    return new SubType(typeName);
   }
 
   toYml(): IDataFile {
     const y = {
       file: this.file,
+      rootModel: this.rootModel,
       fieldTypeMap: {},
     } as IDataFile;
     for (const [fieldPath, fieldType] of Array.from(this._cachefields.entries())) {
-      y.fieldTypeMap[fieldPath.path] = fieldType.typeName;
+      y.fieldTypeMap[fieldPath] = fieldType.typeName;
     }
     return y;
   }
 }
 
 export class SimilarData {
-  dataFile: DataFile | null = null;
-  diffPropPathVal = new Map<ObjectPath, unknown>();
+  constructor(readonly dataFile: DataFile, readonly diffValues: Map<string, unknown>) {}
 }

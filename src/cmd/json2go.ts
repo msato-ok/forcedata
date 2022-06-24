@@ -5,7 +5,7 @@ import { IYmlDefinitions, load as loadYml } from '../spec/yml_type';
 import glob from 'glob';
 
 export class JsonToGoCommand extends AbstractCommandOption implements JsonCommand {
-  private rootDataName: string;
+  private rootDataName: string | null = null;
   private typeDefinitions: IYmlDefinitions | null = null;
   private parser: JsonParser;
 
@@ -17,8 +17,6 @@ export class JsonToGoCommand extends AbstractCommandOption implements JsonComman
     super(_option);
     if (this._option.model) {
       this.rootDataName = this._option.model;
-    } else {
-      this.rootDataName = 'Base';
     }
     if (this._option.type) {
       this.typeDefinitions = loadYml(this._option.type);
@@ -33,7 +31,7 @@ export class JsonToGoCommand extends AbstractCommandOption implements JsonComman
   public execute(pattern: string): void {
     const files = glob.sync(pattern);
     for (const file of files) {
-      console.info(`read ${file} ...\n`);
+      console.info(`read ${file} ...`);
       this.parser.addJson(file, this.rootDataName);
     }
     const parseResult = this.parser.parse();

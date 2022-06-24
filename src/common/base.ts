@@ -1,3 +1,5 @@
+import { throws } from 'assert';
+
 export interface HasKey {
   get key(): string;
 }
@@ -71,6 +73,14 @@ export class ObjectPath implements HasKey {
 
   appendArrayIndex(i: number): ObjectPath {
     return new ObjectPath(`${this._path}[${i}]`);
+  }
+
+  get arrayIndex(): number | undefined {
+    const n = this._path.replace(/.*?\[(\d+)\]$/, '$1');
+    if (n == this._path) {
+      return undefined;
+    }
+    return +n;
   }
 
   static unique(path: string): ObjectPath {

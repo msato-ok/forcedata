@@ -193,18 +193,29 @@ export class SubTypeField implements HasKey {
     }
     return new SubTypeField(fieldName, systemType, null, isArray);
   }
+
+  static fromType(fieldName: string, typeName: string, isArray: boolean): SubTypeField {
+    let systemType: SystemType = SystemType.Object;
+    for (const name of Object.values(SystemType)) {
+      if (typeName == name) {
+        systemType = name as SystemType;
+      }
+    }
+    const objectName = systemType == SystemType.Object ? typeName : null;
+    return new SubTypeField(fieldName, systemType, objectName, isArray);
+  }
 }
 
 export const SystemType = {
-  Int64: 'Int64',
-  String: 'String',
-  Bool: 'Bool',
-  Object: 'Object',
-  Unknown: 'Unknown',
+  Int64: '+Int64',
+  String: '+String',
+  Bool: '+Bool',
+  Object: '+Object',
+  Unknown: '+Unknown',
 } as const;
 export type SystemType = typeof SystemType[keyof typeof SystemType];
 
-export function getSystemType(val: unknown): SystemType {
+function getSystemType(val: unknown): SystemType {
   if (val == null) {
     return SystemType.Unknown;
   }
