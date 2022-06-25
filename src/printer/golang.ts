@@ -71,6 +71,7 @@ class GolangSubType {
 
 class GolangDataFile {
   readonly rootModelStr: string;
+  readonly reuseStr: string;
 
   constructor(private _dataFile: DataFile, private _parseResult: JsonParseResult) {
     const rootModel = _parseResult.getSubType(new SubTypeName(_dataFile.rootModel));
@@ -78,6 +79,7 @@ class GolangDataFile {
       throw new InvalidArgumentError(`rootModel が見つからない状態はあり得ない: ${_dataFile.rootModel}`);
     }
     this.rootModelStr = this.subTypeToStr(new GolangSubType(rootModel), ObjectPath.unique(''));
+    this.reuseStr = this.similarToReuseStr();
   }
 
   get rootModel(): string {
@@ -92,17 +94,17 @@ class GolangDataFile {
     return this._dataFile.baseFile;
   }
 
+  get funcName(): string {
+    return this.makeFuncName(this._dataFile.baseFile);
+  }
+
   private makeFuncName(baseFile: string): string {
     let fn = baseFile.replace(/\.json$/, '');
     fn = fn.replace(/[-.]/g, '_');
     return fn;
   }
 
-  get funcName(): string {
-    return this.makeFuncName(this._dataFile.baseFile);
-  }
-
-  subTypeToStr(goSubType: GolangSubType, opath: ObjectPath): string {
+  private subTypeToStr(goSubType: GolangSubType, opath: ObjectPath): string {
     let str = `${goSubType.typeName}{\n`;
     for (const goField of goSubType.fields) {
       const field = goField.orgField;
@@ -171,12 +173,14 @@ class GolangDataFile {
           str += `${goField.fieldName}: ${goField.typeName}{\n`;
           for (const datum of data) {
             opathChild.appendArrayIndex(i);
-            str += `"${datum}",\n`;
+            const escaped = JSON.stringify(datum);
+            str += `${escaped},\n`;
             i++;
           }
           str += '},\n';
         } else {
-          str += `${goField.fieldName}: "${rawVal}",\n`;
+          const escaped = JSON.stringify(rawVal);
+          str += `${goField.fieldName}: ${escaped},\n`;
         }
       } else {
         throw new InvalidArgumentError(`systemType が不明: systemType=${field.systemType}`);
@@ -230,7 +234,7 @@ class GolangDataFile {
     return routeConv.join('.');
   }
 
-  similarToStr(): string {
+  private similarToReuseStr(): string {
     if (!this._dataFile.similar) {
       return '';
     }
@@ -249,12 +253,30 @@ class GolangDataFile {
         str += `data.${propsPath} = nil`;
       } else if (field.systemType == SystemType.Object) {
         continue;
-      } else if (field.systemType == SystemType.Int64 || field.systemType == SystemType.Bool) {
-        const n = val as number;
-        if (n >= Number.MAX_SAFE_INTEGER) {
-          str += `data.${propsPath} = float64(${val})\n`;
+      } else if (field.isPrimitiveType) {
+        const primitiveToStr = (val: unknown) => {
+          if (util.isString(val)) {
+            return JSON.stringify(val);
+          }
+          const n = val as number;
+          if (n >= Number.MAX_SAFE_INTEGER) {
+            return `float64(${val})`;
+          } else {
+            return `${val}`;
+          }
+        };
+        if (field.isArray) {
+          const data = val as any[];
+          const goField = new GolangSubTypeField(field);
+          str += `data.${propsPath} = ${goField.typeName}{\n`;
+          for (const datum of data) {
+            const p = primitiveToStr(datum);
+            str += `${p},\n`;
+          }
+          str += '}\n';
         } else {
-          str += `data.${propsPath} = ${val}\n`;
+          const p = primitiveToStr(val);
+          str += `data.${propsPath} = ${p}\n`;
         }
       } else if (field.systemType == SystemType.String) {
         str += `data.${propsPath} = "${val}"\n`;
@@ -299,7 +321,7 @@ type <%= goSubType.typeName %> struct {
       return <%- goDataFile.rootModelStr _%>
     <%_ } else { _%>
       data := <%= goDataFile.similarFuncName %>()
-      <%- goDataFile.similarToStr() _%>
+      <%- goDataFile.reuseStr _%>
       return data
     <%_ } _%>
   }

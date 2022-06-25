@@ -150,6 +150,12 @@ export class SubTypeField implements HasKey {
     return this._typeName;
   }
 
+  get isPrimitiveType(): boolean {
+    return (
+      this.systemType == SystemType.String || this.systemType == SystemType.Int64 || this.systemType == SystemType.Bool
+    );
+  }
+
   compare(target: SubTypeField): boolean {
     if (this.fieldName != target.fieldName) {
       return false;
@@ -232,8 +238,4 @@ function getSystemType(val: unknown): SystemType {
     return SystemType.Object;
   }
   throw new InvalidArgumentError();
-}
-
-export function isPrimitiveType(systemType: SystemType): boolean {
-  return systemType == SystemType.String || systemType == SystemType.Int64 || systemType == SystemType.Bool;
 }

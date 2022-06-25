@@ -75,6 +75,9 @@ export class ObjectPath implements HasKey {
     return new ObjectPath(`${this._path}[${i}]`);
   }
 
+  /**
+   * 配列の添字を返す
+   */
   get arrayIndex(): number | undefined {
     const n = this._path.replace(/.*?\[(\d+)\]$/, '$1');
     if (n == this._path) {

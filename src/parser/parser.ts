@@ -181,6 +181,20 @@ export class JsonParser {
     this.result.putSubType(subType);
   }
 
+  /**
+   * 類似するデータを探して"再利用するコード"生成用のデータを作成する
+   *
+   * - キャッシュにある全データと比較して"一番"類似するデータを探す
+   * - 見つかった類似データは target の similar にセットする
+   *
+   * 類似の仕様
+   * - 同じ型である
+   * - プリミティブな値を比較して異なる値の総プロパティ数が一番少ないものが、より類似するものと判定する
+   * - 全プロパティが異なる場合、"再利用するコード"は冗長で無意味なものになるので類似候補にしない
+   * - 配列の場合、配列数が異なる場合は、配列全体を差分として置き換え対象として相違数をカウントする
+   *
+   * @param target
+   */
   private searchSimilarData(target: DataFile) {
     let maxNotSame = Number.MAX_SAFE_INTEGER;
     let similar: SimilarData | null = null;
@@ -199,17 +213,43 @@ export class JsonParser {
       if (targetSubType == null) {
         throw new InvalidArgumentError(`${target.file} には rootModel がない`);
       }
+      // 型が異なるものは比較しない
       if (!cachedSubType.compare(targetSubType)) {
         continue;
       }
+      // notSame: プリミティブな値が異っているプロパティの数
+      // skipCount: opathが配列全体あるいはオブイジェクトの場合は比較しないのでスキップした数
+      //
+      // opath が示す val が配列の場合
+      // opath が配列を示しているときは arrayIndex は undefined になっていて
+      // 配列の要素のときに arrayIndex は number になっている
+      //
+      // 配列数が異なる場合は、配列全体を差分として置き換えるようにする
+      // opath がオブジェクト全体の場合、比較しない
+      //
       let notSame = 0;
+      let skipCount = 0;
       const diffValues = new Map<string, unknown>();
       for (const opath of cached.objectPaths) {
         const field = target.getField(opath);
         if (!field) {
           throw new InvalidArgumentError(`${target.file} には ${opath.path} はない`);
         }
-        if (field.isArray && opath.arrayIndex === undefined) {
+        if (field.isArray) {
+          if (opath.arrayIndex === undefined) {
+            const targetArray = target.getValue(opath) as any[];
+            const cachedArray = cached.getValue(opath) as any[];
+            if (targetArray.length != cachedArray.length) {
+              notSame++;
+              diffValues.set(opath.path, targetArray);
+            } else {
+              skipCount++;
+            }
+            continue;
+          }
+        }
+        if (field.systemType == SystemType.Object) {
+          skipCount++;
           continue;
         }
         if (target.getValue(opath) != cached.getValue(opath)) {
@@ -217,9 +257,11 @@ export class JsonParser {
           diffValues.set(opath.path, target.getValue(opath));
         }
       }
-      if (notSame == target.objectPaths.length) {
+      // 全プロパティが異なる場合は類似候補にしない
+      if (notSame + skipCount == target.objectPaths.length) {
         continue;
       }
+      // 値が異なるプロパティ数が少ないものが、より類似していると判定する
       if (notSame < maxNotSame) {
         maxNotSame = notSame;
         similar = new SimilarData(cached, diffValues);
