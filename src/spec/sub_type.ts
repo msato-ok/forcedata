@@ -1,10 +1,14 @@
-import { HasKey, InvalidArgumentError } from '../common/base';
+import { HasKey, DataTypeError, InvalidArgumentError } from '../common/base';
 import { IYmlSubType, IYmlSubTypeField } from './yml_type';
 import { ObjectPath, ObjectPathNoArrayIndex } from '../common/base';
 import * as util from '../common/util';
 
 export class SubTypeName {
   constructor(readonly name: string) {}
+
+  equals(target: SubTypeName) {
+    return this.name == target.name;
+  }
 
   static fromObjectPath(opath: ObjectPath): SubTypeName {
     opath = ObjectPathNoArrayIndex.fromObjectPath(opath);
@@ -39,6 +43,15 @@ export class SubType extends SubTypeBase implements HasKey {
     this._fields.push(field);
   }
 
+  getField(fieldName: string): SubTypeField {
+    for (const field of this._fields) {
+      if (field.fieldName == fieldName) {
+        return field;
+      }
+    }
+    throw new DataTypeError(`${this.typeName.name} に ${fieldName} がない`);
+  }
+
   resetFields() {
     this._fields = [];
   }
@@ -70,7 +83,7 @@ export class SubType extends SubTypeBase implements HasKey {
   }
 
   compare(target: SubType): boolean {
-    if (this.typeName != target.typeName) {
+    if (!this.typeName.equals(target.typeName)) {
       return false;
     }
     if (this.fields.length != target.fields.length) {

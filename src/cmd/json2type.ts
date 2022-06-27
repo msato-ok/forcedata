@@ -22,7 +22,7 @@ export class JsonToTypeCommand extends AbstractCommandOption implements JsonComm
   public execute(pattern: string): void {
     const files = glob.sync(pattern);
     for (const file of files) {
-      console.info(`read ${file} ...\n`);
+      console.info(`read ${file} ...`);
       this.parser.addJson(file, this.rootDataName);
     }
     const parseResult = this.parser.parse();

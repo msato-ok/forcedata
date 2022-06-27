@@ -1,5 +1,3 @@
-import { throws } from 'assert';
-
 export interface HasKey {
   get key(): string;
 }
@@ -122,6 +120,8 @@ export class ValidationError extends AppError {}
 export class ParseError extends AppError {}
 
 export class InvalidArgumentError extends AppError {}
+
+export class DataTypeError extends AppError {}
 
 /**
  * 実装上あり得ないエラー.
