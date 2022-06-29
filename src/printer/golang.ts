@@ -189,21 +189,21 @@ class GolangDataSubType {
             const childrenDataSubType = diffValue.value as DataSubType[];
             str += `data.${goField.fieldName} = ${goField.typeName}{\n`;
             for (const childDst of childrenDataSubType) {
-              const fn = this.makeFuncName(childDst.dataName);
+              const fn = this.makeFuncName(childDst.similarAncesters.dataName);
               str += `${fn}(),\n`;
             }
             str += '}\n';
           } else if (diffValue instanceof DiffArrayValue) {
             const diffArrVal = diffValue;
             const childDst = diffValue.value as DataSubType;
-            const fn = this.makeFuncName(childDst.dataName);
+            const fn = this.makeFuncName(childDst.similarAncesters.dataName);
             str += `data.${goField.fieldName}[${diffArrVal.arrIindex}] = ${fn}()\n`;
           } else {
             throw new InvalidArgumentError(`unknown instance type: ${typeof diffValue}`);
           }
         } else {
           const childDst = diffValue.value as DataSubType;
-          const fn = this.makeFuncName(childDst.dataName);
+          const fn = this.makeFuncName(childDst.similarAncesters.dataName);
           str += `data.${goField.fieldName} = ${fn}()\n`;
         }
       } else {

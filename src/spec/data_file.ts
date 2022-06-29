@@ -44,6 +44,15 @@ export class DataSubType {
     return this._getValue(fieldName) as DataSubType[];
   }
 
+  get similarAncesters(): DataSubType {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    let dst: DataSubType = this;
+    while (dst.similar != null) {
+      dst = dst.similar.dataSubType;
+    }
+    return dst;
+  }
+
   private _setValue(fieldName: string, val: unknown) {
     const field = this.subType.getField(fieldName);
     if (!field) {
@@ -132,7 +141,7 @@ export class DataSubType {
           const srcArray = this.getArrayDataSubType(field.fieldName);
           if (targetArray.length != srcArray.length) {
             notSameCount += srcArray.length;
-            diffValues.push(new DiffArrayAllValues(field, targetArray));
+            diffValues.push(new DiffArrayAllValues(field, srcArray));
           } else {
             for (let i = 0; i < srcArray.length; i++) {
               const similar = srcArray[i].updateSimilarData(targetArray[i]);
