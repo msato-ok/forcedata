@@ -90,8 +90,8 @@ export class DataSubType {
     if (this == target) {
       return null;
     }
-    if (target.similar && target.similar.dataSubType == this) {
-      return null;
+    if (target.similar) {
+      return target.similar;
     }
     // 型が異なるものは比較しない
     if (!this.subType.compare(target.subType)) {
@@ -222,7 +222,11 @@ export class DataFile implements HasKey {
     if (this._rootDataSubType == null) {
       throw new InvalidArgumentError(`_dataSubType が設定されていない: ${this.file}`);
     }
-    return this._rootDataSubType;
+    let dst = this._rootDataSubType;
+    if (dst.similar != null && dst.similar.diffValues.length == 0) {
+      dst = dst.similar.dataSubType;
+    }
+    return dst;
   }
 
   getField(opath: ObjectPath): SubTypeField | undefined {

@@ -4,13 +4,19 @@ import { GolangPrinter } from '../printer/golang';
 import { IYmlDefinitions, load as loadYml } from '../spec/yml_type';
 import glob from 'glob';
 
+export interface IJsonToGoCommand extends ICommandOption {
+  output: string;
+  type: string;
+  model: string;
+}
+
 export class JsonToGoCommand extends AbstractCommandOption implements JsonCommand {
   private rootDataName: string | null = null;
   private typeDefinitions: IYmlDefinitions | null = null;
   private parser: JsonParser;
 
   constructor(
-    protected _option: ICommandOption,
+    protected _option: IJsonToGoCommand,
     _parser: JsonParser | null = null,
     private printer: GolangPrinter = new GolangPrinter()
   ) {

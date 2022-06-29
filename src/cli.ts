@@ -1,7 +1,7 @@
 import { Command } from 'commander';
-import { JsonCommand, ICommandOption } from './cmd/base';
-import { JsonToGoCommand } from './cmd/json2go';
-import { JsonToTypeCommand } from './cmd/json2type';
+import { JsonCommand } from './cmd/base';
+import { JsonToGoCommand, IJsonToGoCommand } from './cmd/json2go';
+import { JsonToTypeCommand, IJsonToTypeCommandOption } from './cmd/json2type';
 
 const packageJson = require('../package.json');
 const version: string = packageJson.version;
@@ -16,7 +16,7 @@ program
   .requiredOption('-o, --output <file>', 'output source file')
   .option('-m, --model <model name>', 'root model name')
   .option('-v, --verbose', 'verbose mode')
-  .action((pattern: string, option: ICommandOption): void => {
+  .action((pattern: string, option: IJsonToTypeCommandOption): void => {
     const command = new JsonToTypeCommand(option);
     executeCommand(pattern, command);
   });
@@ -28,7 +28,7 @@ program
   .option('-t, --type <file>', 'type definition yaml')
   .option('-m, --model <model name>', 'root model name')
   .option('-v, --verbose', 'verbose mode')
-  .action((pattern: string, option: ICommandOption): void => {
+  .action((pattern: string, option: IJsonToGoCommand): void => {
     const command = new JsonToGoCommand(option);
     executeCommand(pattern, command);
   });

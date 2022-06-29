@@ -1,7 +1,4 @@
 export interface ICommandOption {
-  output: string;
-  type: string;
-  model: string;
   verbose: boolean;
 }
 

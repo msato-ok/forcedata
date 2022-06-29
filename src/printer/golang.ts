@@ -109,11 +109,16 @@ class GolangDataSubType {
       const field = goField.orgField;
       if (field.systemType == SystemType.Object) {
         if (field.isArray) {
-          const vals = this._dataSubType.getArrayDataSubType(field.fieldName);
+          const dsTypes = this._dataSubType.getArrayDataSubType(field.fieldName);
           str += `${goField.fieldName}: ${goField.typeName}{\n`;
-          for (const val of vals) {
-            const dataFnc = this.makeFuncName(val.dataName);
-            str += `${dataFnc}(),\n`;
+          for (const dst of dsTypes) {
+            if (dst.similar == null) {
+              const dataFnc = this.makeFuncName(dst.dataName);
+              str += `${dataFnc}(),\n`;
+            } else {
+              const dataFnc = this.makeFuncName(dst.similar.dataSubType.dataName);
+              str += `${dataFnc}(),\n`;
+            }
           }
           str += '},\n';
         } else {
@@ -182,7 +187,7 @@ class GolangDataSubType {
         if (field.isArray) {
           if (diffValue instanceof DiffArrayAllValues) {
             const childrenDataSubType = diffValue.value as DataSubType[];
-            str += `data.${goField.fieldName} = []${goField.typeName}{\n`;
+            str += `data.${goField.fieldName} = ${goField.typeName}{\n`;
             for (const childDst of childrenDataSubType) {
               const fn = this.makeFuncName(childDst.dataName);
               str += `${fn}(),\n`;
@@ -245,8 +250,8 @@ export class GolangPrinter {
       goSubTypes.push(new GolangSubType(subType));
     }
     const goDataSubTypes = [];
-    for (const subType of parseResult.dataSubTypes) {
-      goDataSubTypes.push(new GolangDataSubType(subType));
+    for (const dst of parseResult.dataSubTypes) {
+      goDataSubTypes.push(new GolangDataSubType(dst));
     }
     const goDataFiles = [];
     for (const dataFile of parseResult.dataFiles) {

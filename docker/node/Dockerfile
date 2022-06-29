@@ -2,7 +2,7 @@ ARG NODE_VERSION=16.15.1
 
 FROM node:${NODE_VERSION}
 
-ARG GOLANG_VERSION=1.16.6
+ARG GOLANG_VERSION=1.18.3
 
 ARG APP_HOME=/app
 ARG USERNAME=node
@@ -46,18 +46,13 @@ RUN curl -Ls -o go.tar.gz https://go.dev/dl/go${GOLANG_VERSION}.linux-amd64.tar.
   && rm go.tar.gz
 ENV PATH $PATH:/usr/local/go/bin
 RUN go env -w GO111MODULE=on
-## go dev tools
-RUN go get -v github.com/uudashr/gopkgs/v2/cmd/gopkgs
-RUN go get -v github.com/ramya-rao-a/go-outline
-RUN go get -v github.com/cweill/gotests/gotests
-RUN go get -v github.com/fatih/gomodifytags
-RUN go get -v github.com/josharian/impl
-RUN go get -v github.com/haya14busa/goplay/cmd/goplay
-RUN go get -v github.com/go-delve/delve/cmd/dlv
-RUN go get -v github.com/go-delve/delve/cmd/dlv@master
-RUN go get -v golang.org/x/tools/gopls
 
 WORKDIR ${APP_HOME}
+# gopls
+COPY go.mod ${APP_HOME}
+RUN go get -v golang.org/x/tools/gopls
+
+# npm
 COPY package.json ${APP_HOME}
 COPY package-lock.json ${APP_HOME}
 COPY .husky/ ${APP_HOME}/.husky/

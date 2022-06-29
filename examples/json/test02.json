@@ -1,6 +1,6 @@
 {
   "id": "5973782bdb9a930533b05cb2",
-  "is_active": true,
+  "is_active": false,
   "age": 32,
   "name": "Logan Keller",
   "gender": "male",
@@ -14,13 +14,14 @@
     },
     {
       "id": 1,
-      "name": "French\nMcneil"
+      "name": "French\nMcneil2"
     }
   ],
   "groups": [
     1,
     2,
-    3
+    3,
+    4
   ],
   "rooms": [
     "1-1",

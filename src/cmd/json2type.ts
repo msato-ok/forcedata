@@ -3,11 +3,17 @@ import { JsonParser } from '../parser/parser';
 import { YmlTypePrinter } from '../printer/yml_type';
 import glob from 'glob';
 
+export interface IJsonToTypeCommandOption extends ICommandOption {
+  output: string;
+  type: string;
+  model: string;
+}
+
 export class JsonToTypeCommand extends AbstractCommandOption implements JsonCommand {
   private rootDataName: string;
 
   constructor(
-    protected _option: ICommandOption,
+    protected _option: IJsonToTypeCommandOption,
     private parser: JsonParser = new JsonParser(null),
     private printer: YmlTypePrinter = new YmlTypePrinter()
   ) {

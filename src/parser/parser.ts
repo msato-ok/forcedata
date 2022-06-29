@@ -56,9 +56,14 @@ export class JsonParseResult {
   }
 
   get dataSubTypes(): DataSubType[] {
-    let list: DataSubType[] = [];
+    const list: DataSubType[] = [];
     for (const dataFile of this.dataFiles) {
-      list = list.concat(dataFile.dataSubTypes);
+      for (const dst of dataFile.dataSubTypes) {
+        if (dst.similar != null && dst.similar.diffValues.length == 0) {
+          continue;
+        }
+        list.push(dst);
+      }
     }
     return list;
   }
