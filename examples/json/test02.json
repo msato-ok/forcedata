@@ -6,7 +6,7 @@
   "gender": "male",
   "eye_color": null,
   "hair_style": {},
-  "salery": 9223372036854775807,
+  "salery": 9007199254740991,
   "friends": [
     {
       "id": 0,

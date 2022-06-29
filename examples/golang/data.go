@@ -54,7 +54,7 @@ func GetTest01Base1() Base {
 		Gender:    "male",
 		EyeColor:  nil,
 		HairStyle: GetTest01HairStyle1(),
-		Salery:    float64(9223372036854776000),
+		Salery:    9007199254740991,
 		Friends: []Friends{
 			GetTest01Friends1(),
 			GetTest01Friends2(),
@@ -138,6 +138,7 @@ func GetTest04Base1() Base {
 	data.Friends = []Friends{
 		GetTest01Friends1(),
 		GetTest01Friends2(),
+		GetTest04Friends3(),
 	}
 	return data
 }
