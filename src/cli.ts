@@ -27,6 +27,7 @@ program
   .requiredOption('-o, --output <file>', 'output source file')
   .option('-t, --type <file>', 'type definition yaml')
   .option('-m, --model <model name>', 'root model name')
+  .option('-p, --package <package name>', 'package name')
   .option('-v, --verbose', 'verbose mode')
   .action((pattern: string, option: IJsonToGoCommand): void => {
     const command = new JsonToGoCommand(option);

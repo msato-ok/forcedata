@@ -244,6 +244,8 @@ class GolangDataFile {
 }
 
 export class GolangPrinter {
+  constructor(private packageName: string) {}
+
   print(parseResult: JsonParseResult, outputPath: string) {
     const goSubTypes = [];
     for (const subType of parseResult.subTypes) {
@@ -257,10 +259,18 @@ export class GolangPrinter {
     for (const dataFile of parseResult.dataFiles) {
       goDataFiles.push(new GolangDataFile(dataFile));
     }
+    const data = {
+      packageName: this.packageName,
+      goCodePath: outputPath,
+      jsonOutputDir: path.dirname(outputPath),
+      goSubTypes: goSubTypes,
+      goDataSubTypes: goDataSubTypes,
+      goDataFiles: goDataFiles,
+    };
     const template = `
 // +build test
 
-package main
+package <%= packageName %>
 
 type StringOrNull interface{}
 type Int64OrNull interface{}
@@ -292,17 +302,7 @@ var TestData = map[string]interface{} {
   <%_ }); _%>
 }
 `;
-    const text = ejs.render(
-      template,
-      {
-        goCodePath: outputPath,
-        jsonOutputDir: path.dirname(outputPath),
-        goSubTypes: goSubTypes,
-        goDataSubTypes: goDataSubTypes,
-        goDataFiles: goDataFiles,
-      },
-      {}
-    );
+    const text = ejs.render(template, data, {});
     fs.writeFileSync(outputPath, text);
     execSync(`gofmt -w ${outputPath}`);
   }
