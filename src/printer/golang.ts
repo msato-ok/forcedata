@@ -34,7 +34,7 @@ class GolangSubTypeField {
         if (!this.orgField.objectName) {
           throw new InvalidArgumentError('"SystemType.Object" where objectName is required');
         }
-        t = this.orgField.objectName;
+        t = `*${this.orgField.objectName}`;
         break;
       default:
         throw new InvalidArgumentError(`unknown systemType: ${this.orgField.systemType}`);
@@ -87,19 +87,19 @@ class GolangDataSubType {
     return this._dataSubType.subType.typeName.name;
   }
 
-  get funcName(): string {
-    return this.makeFuncName(this._dataSubType.dataName);
+  get dataId(): string {
+    return this.makeDataId(this._dataSubType.dataName);
   }
 
-  get similarFuncName(): string {
+  get similarDataId(): string {
     if (!this._dataSubType.similar) {
       throw new InvalidArgumentError();
     }
-    return this.makeFuncName(this._dataSubType.similar.dataSubType.dataName);
+    return this.makeDataId(this._dataSubType.similar.dataSubType.dataName);
   }
 
-  private makeFuncName(dataName: string): string {
-    return 'Get' + util.pascalCase(dataName);
+  private makeDataId(dataName: string): string {
+    return util.pascalCase(dataName);
   }
 
   private dataSubTypeToStr(): string {
@@ -113,18 +113,18 @@ class GolangDataSubType {
           str += `${goField.fieldName}: ${goField.typeName}{\n`;
           for (const dst of dsTypes) {
             if (dst.similar == null) {
-              const dataFnc = this.makeFuncName(dst.dataName);
-              str += `${dataFnc}(),\n`;
+              const dataId = this.makeDataId(dst.dataName);
+              str += `f.ChildNode(${dataId}).(*${dst.subType.typeName.name}),\n`;
             } else {
-              const dataFnc = this.makeFuncName(dst.similar.dataSubType.dataName);
-              str += `${dataFnc}(),\n`;
+              const dataId = this.makeDataId(dst.similar.dataSubType.dataName);
+              str += `f.ChildNode(${dataId}).(*${dst.subType.typeName.name}),\n`;
             }
           }
           str += '},\n';
         } else {
           const val = this._dataSubType.getDataSubType(field.fieldName);
-          const dataFnc = this.makeFuncName(val.dataName);
-          str += `${goField.fieldName}: ${dataFnc}(),\n`;
+          const dataId = this.makeDataId(val.dataName);
+          str += `${goField.fieldName}: f.ChildNode(${dataId}).(*${val.subType.typeName.name}),\n`;
         }
       } else if (field.systemType == SystemType.Unknown) {
         str += `${goField.fieldName}: nil,\n`;
@@ -189,22 +189,22 @@ class GolangDataSubType {
             const childrenDataSubType = diffValue.value as DataSubType[];
             str += `data.${goField.fieldName} = ${goField.typeName}{\n`;
             for (const childDst of childrenDataSubType) {
-              const fn = this.makeFuncName(childDst.similarAncesters.dataName);
-              str += `${fn}(),\n`;
+              const dataId = this.makeDataId(childDst.similarAncesters.dataName);
+              str += `f.ChildNode(${dataId}).(*${childDst.subType.typeName.name}),\n`;
             }
             str += '}\n';
           } else if (diffValue instanceof DiffArrayValue) {
             const diffArrVal = diffValue;
             const childDst = diffValue.value as DataSubType;
-            const fn = this.makeFuncName(childDst.similarAncesters.dataName);
-            str += `data.${goField.fieldName}[${diffArrVal.arrIindex}] = ${fn}()\n`;
+            const dataId = this.makeDataId(childDst.similarAncesters.dataName);
+            str += `data.${goField.fieldName}[${diffArrVal.arrIindex}] = f.ChildNode(${dataId}).(*${childDst.subType.typeName.name})\n`;
           } else {
             throw new InvalidArgumentError(`unknown instance type: ${typeof diffValue}`);
           }
         } else {
           const childDst = diffValue.value as DataSubType;
-          const fn = this.makeFuncName(childDst.similarAncesters.dataName);
-          str += `data.${goField.fieldName} = ${fn}()\n`;
+          const dataId = this.makeDataId(childDst.similarAncesters.dataName);
+          str += `data.${goField.fieldName} = f.ChildNode(${dataId}).(${childDst.subType.typeName.name})\n`;
         }
       } else {
         throw new InvalidArgumentError(`systemType が不明: systemType=${field.systemType}`);
@@ -229,9 +229,13 @@ class GolangDataSubType {
 class GolangDataFile {
   constructor(private _dataFile: DataFile) {}
 
-  get rootDataFuncName(): string {
+  get rootDataId(): string {
     const goDataSubType = new GolangDataSubType(this._dataFile.rootDataSubType);
-    return goDataSubType.funcName;
+    return goDataSubType.dataId;
+  }
+
+  get rootSubTypeName(): string {
+    return this._dataFile.rootDataSubType.subType.typeName.name;
   }
 
   get file(): string {
@@ -284,21 +288,34 @@ type <%= goSubType.typeName %> struct {
 }
 <% }); %>
 
-<%_ goDataSubTypes.forEach((goDataSubType) => { %>
-  func <%= goDataSubType.funcName %>() <%- goDataSubType.returnTypeName _%> {
-    <%_ if (!goDataSubType.hasSimilar) { _%>
-      return <%- goDataSubType.modelStr _%>
-    <%_ } else { _%>
-      data := <%= goDataSubType.similarFuncName %>()
-      <%- goDataSubType.reuseStr _%>
-      return data
-    <%_ } _%>
-  }
-<%_ }); _%>
+// データの識別子
+const (
+  <%_ goDataSubTypes.forEach((goDataSubType) => { _%>
+    <%= goDataSubType.dataId %> DataID = "<%= goDataSubType.dataId %>"
+  <%_ }); _%>
+)
 
-var TestData = map[string]interface{} {
+// データ登録
+func RegisterData() {
+	f := Factory
+  <%_ goDataSubTypes.forEach((goDataSubType) => { _%>
+    <%_ if (!goDataSubType.hasSimilar) { _%>
+      f.Register(<%= goDataSubType.dataId %>, func() interface{} {
+        return &<%- goDataSubType.modelStr _%>
+      })
+    <%_ } else { _%>
+      f.Register(<%= goDataSubType.dataId %>, func() interface{} {
+        data := f.InheritNode(<%= goDataSubType.similarDataId %>).(*<%- goDataSubType.returnTypeName _%>)
+        <%- goDataSubType.reuseStr _%>
+        return data
+      })
+    <%_ } _%>
+  <%_ }); _%>
+}
+
+var TestData = map[string]DataID {
   <%_ goDataFiles.forEach((goDataFile) => { _%>
-    "<%= goDataFile.baseFile %>": <%= goDataFile.rootDataFuncName %>(),
+    "<%= goDataFile.baseFile %>": <%= goDataFile.rootDataId %>,
   <%_ }); _%>
 }
 `;

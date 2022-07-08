@@ -5,14 +5,14 @@
 json のデータを作成するサンプル
 
 usege:
-go run -tags=test examples/golang/makejson/main.go -outdir examples/json8
+go run -tags=test examples/golang/makejson/main.go -outdir examples/json
 
 */
 
 package main
 
 import (
-	"datatrait/examples/golang"
+	"forcedata/examples/golang"
 
 	"encoding/json"
 	"flag"
@@ -49,11 +49,15 @@ func validateArgs() error {
 }
 
 func execute() error {
-	if err := os.MkdirAll(outdir, 0755); err != nil {
-		return err
-	}
-	for jsonFile, data := range golang.TestData {
+	// if _, err := os.Stat(outdir); os.IsNotExist(err) {
+	// 	if err := os.MkdirAll(outdir, 0755); err != nil {
+	// 		return err
+	// 	}
+	// }
+	golang.RegisterData()
+	for jsonFile, dataID := range golang.TestData {
 		outputPath := filepath.Join(outdir, jsonFile)
+		data := golang.Factory.Get(dataID)
 		bdata, err := json.MarshalIndent(data, "", "  ")
 		if err != nil {
 			return err

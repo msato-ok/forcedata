@@ -8,7 +8,7 @@ const version: string = packageJson.version;
 
 const program = new Command();
 
-program.name('datatrait').version(version);
+program.name('forcedata').version(version);
 
 program
   .command('json2type <pattern>')
