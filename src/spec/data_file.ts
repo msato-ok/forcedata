@@ -196,7 +196,7 @@ export class DataSubType {
     }
     const similar = new SimilarData(target, diffValues, notSameCount, sameCount);
     // 全プロパティが異なる場合は類似とは言わないので、target.similar にはセットしない
-    if (sameCount > 0) {
+    if (sameCount > 0 || notSameCount == 0) {
       if (!this.similar) {
         this.similar = similar;
       } else if (notSameCount < this.similar.notSameCount) {
