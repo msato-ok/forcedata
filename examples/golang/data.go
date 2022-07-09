@@ -53,10 +53,8 @@ const (
 	Test01Friends2   DataID = "Test01Friends2"
 	Test01Device1    DataID = "Test01Device1"
 	Test01Base1      DataID = "Test01Base1"
-	Test02HairStyle1 DataID = "Test02HairStyle1"
 	Test02Friends2   DataID = "Test02Friends2"
 	Test02Base1      DataID = "Test02Base1"
-	Test04HairStyle1 DataID = "Test04HairStyle1"
 	Test04Friends3   DataID = "Test04Friends3"
 	Test04Base1      DataID = "Test04Base1"
 )
@@ -123,9 +121,6 @@ func RegisterData() {
 			Device: f.ChildNode(Test01Device1).(*Device),
 		}
 	})
-	f.Register(Test02HairStyle1, func() interface{} {
-		return &HairStyle{}
-	})
 	f.Register(Test02Friends2, func() interface{} {
 		data := f.InheritNode(Test01Friends2).(*Friends)
 		data.Name = "French\nMcneil"
@@ -141,9 +136,6 @@ func RegisterData() {
 			3,
 		}
 		return data
-	})
-	f.Register(Test04HairStyle1, func() interface{} {
-		return &HairStyle{}
 	})
 	f.Register(Test04Friends3, func() interface{} {
 		return &Friends{
