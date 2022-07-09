@@ -46,24 +46,36 @@ type Base struct {
 
 // データの識別子
 const (
-	Test01Base1      DataID = "Test01Base1"
+	Test01Android1   DataID = "Test01Android1"
+	Test01Ios1       DataID = "Test01Ios1"
 	Test01HairStyle1 DataID = "Test01HairStyle1"
 	Test01Friends1   DataID = "Test01Friends1"
 	Test01Friends2   DataID = "Test01Friends2"
 	Test01Device1    DataID = "Test01Device1"
-	Test01Android1   DataID = "Test01Android1"
-	Test01Ios1       DataID = "Test01Ios1"
-	Test02Base1      DataID = "Test02Base1"
+	Test01Base1      DataID = "Test01Base1"
 	Test02HairStyle1 DataID = "Test02HairStyle1"
 	Test02Friends2   DataID = "Test02Friends2"
-	Test04Base1      DataID = "Test04Base1"
+	Test02Base1      DataID = "Test02Base1"
 	Test04HairStyle1 DataID = "Test04HairStyle1"
 	Test04Friends3   DataID = "Test04Friends3"
+	Test04Base1      DataID = "Test04Base1"
 )
 
 // データ登録
 func RegisterData() {
 	f := Factory
+	f.Register(Test01Android1, func() interface{} {
+		return &Android{
+			Manufacturer: "google",
+			Model:        "pixel5",
+		}
+	})
+	f.Register(Test01Ios1, func() interface{} {
+		return &Ios{
+			Manufacturer: "apple",
+			Model:        "iphone12",
+		}
+	})
 	f.Register(Test01HairStyle1, func() interface{} {
 		return &HairStyle{}
 	})
@@ -77,18 +89,6 @@ func RegisterData() {
 		return &Friends{
 			Id:   1,
 			Name: "French\nMcneil",
-		}
-	})
-	f.Register(Test01Android1, func() interface{} {
-		return &Android{
-			Manufacturer: "google",
-			Model:        "pixel5",
-		}
-	})
-	f.Register(Test01Ios1, func() interface{} {
-		return &Ios{
-			Manufacturer: "apple",
-			Model:        "iphone12",
 		}
 	})
 	f.Register(Test01Device1, func() interface{} {

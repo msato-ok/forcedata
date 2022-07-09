@@ -256,7 +256,7 @@ export class GolangPrinter {
       goSubTypes.push(new GolangSubType(subType));
     }
     const goDataSubTypes = [];
-    for (const dst of parseResult.dataSubTypes) {
+    for (const dst of parseResult.dataSubTypesSortedByRegistration) {
       goDataSubTypes.push(new GolangDataSubType(dst));
     }
     const goDataFiles = [];
