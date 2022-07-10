@@ -120,14 +120,14 @@ export function registerData() {
   });
   f.register(DATAID.TEST02_FRIENDS_2, () => {
     const data = f.inheritNode(DATAID.TEST01_FRIENDS_2) as Friends;
-    data.name = 'French\nMcneil';
+    data.name = 'French\nMcneil2';
     return data;
   });
   f.register(DATAID.TEST02_BASE_1, () => {
     const data = f.inheritNode(DATAID.TEST01_BASE_1) as Base;
-    data.is_active = true;
-    data.friends[1] = f.childNode(DATAID.TEST01_FRIENDS_2) as Friends;
-    data.groups = [1, 2, 3];
+    data.is_active = false;
+    data.friends[1] = f.childNode(DATAID.TEST02_FRIENDS_2) as Friends;
+    data.groups = [1, 2, 3, 4];
     return data;
   });
   f.register(DATAID.TEST04_FRIENDS_3, () => {
