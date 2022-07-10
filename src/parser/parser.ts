@@ -152,9 +152,11 @@ export class JsonParser {
     }
     const revDataSubTypes = [...this.result.uniqueDataSubTypes];
     revDataSubTypes.reverse();
-    for (const dataSubType of revDataSubTypes) {
-      for (const target of revDataSubTypes) {
-        dataSubType.updateSimilarData(target);
+    for (let i = 0; i < revDataSubTypes.length; i++) {
+      const src = revDataSubTypes[i];
+      for (let j = i + 1; j < revDataSubTypes.length; j++) {
+        const target = revDataSubTypes[j];
+        src.updateSimilarData(target);
       }
     }
     return this.result;

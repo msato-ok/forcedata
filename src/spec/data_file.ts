@@ -44,10 +44,19 @@ export class DataSubType {
     return this._getValue(fieldName) as DataSubType[];
   }
 
+  /**
+   * オブジェクトの内容が同じデータを similer のリンクリストを辿って取得する
+   * similer がないものは、this を返す。
+   * similer はあるが、diffValues が1つ以上あるものは、内容が同一ではないので、
+   * その手前のオブジェクトを返す。
+   */
   get similarAncesters(): DataSubType {
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     let dst: DataSubType = this;
     while (dst.similar != null) {
+      if (dst.similar.diffValues.length > 0) {
+        break;
+      }
       dst = dst.similar.dataSubType;
     }
     return dst;
@@ -97,24 +106,12 @@ export class DataSubType {
    */
   updateSimilarData(target: DataSubType): SimilarData | null {
     if (this == target) {
-      return null;
-    }
-    if (target.similar) {
-      return target.similar;
+      throw new InvalidArgumentError('this と target は比較してはいけない');
     }
     // 型が異なるものは比較しない
     if (!this.subType.compare(target.subType)) {
       return null;
     }
-    // notSame: プリミティブな値が異っているプロパティの数
-    //
-    // opath が示す val が配列の場合
-    // opath が配列を示しているときは arrayIndex は undefined になっていて
-    // 配列の要素のときに arrayIndex は number になっている
-    //
-    // 配列数が異なる場合は、配列全体を差分として置き換えるようにする
-    // opath がオブジェクト全体の場合、比較しない
-    //
     let sameCount = 0;
     let notSameCount = 0;
     const diffValues: DiffValue[] = [];
@@ -125,12 +122,12 @@ export class DataSubType {
           const srcArray = this.getArrayValue(field.fieldName);
           if (targetArray.length != srcArray.length) {
             notSameCount += srcArray.length;
-            diffValues.push(new DiffArrayAllValues(field, targetArray));
+            diffValues.push(new DiffArrayAllValues(field, srcArray));
           } else {
             for (let i = 0; i < srcArray.length; i++) {
               if (srcArray[i] != targetArray[i]) {
                 notSameCount++;
-                diffValues.push(new DiffArrayValue(field, i, targetArray[i]));
+                diffValues.push(new DiffArrayValue(field, i, srcArray[i]));
               } else {
                 sameCount++;
               }
@@ -152,7 +149,7 @@ export class DataSubType {
               }
               if (similar.notSameCount != 0) {
                 notSameCount++;
-                diffValues.push(new DiffArrayValue(field, i, targetArray[i]));
+                diffValues.push(new DiffArrayValue(field, i, srcArray[i]));
               } else {
                 sameCount++;
               }
@@ -164,14 +161,14 @@ export class DataSubType {
       } else if (field.isPrimitiveType) {
         if (target.getValue(field.fieldName) != this.getValue(field.fieldName)) {
           notSameCount++;
-          diffValues.push(new DiffValue(field, target.getValue(field.fieldName)));
+          diffValues.push(new DiffValue(field, this.getValue(field.fieldName)));
         } else {
           sameCount++;
         }
       } else if (field.systemType == SystemType.Unknown) {
         if (target.getValue(field.fieldName) != this.getValue(field.fieldName)) {
           notSameCount++;
-          diffValues.push(new DiffValue(field, target.getValue(field.fieldName)));
+          diffValues.push(new DiffValue(field, this.getValue(field.fieldName)));
         } else {
           sameCount++;
         }
@@ -186,7 +183,7 @@ export class DataSubType {
         }
         if (similar.notSameCount != 0) {
           notSameCount++;
-          diffValues.push(new DiffValue(field, targetDataSubType));
+          diffValues.push(new DiffValue(field, srcDataSubType));
         } else {
           sameCount++;
         }
