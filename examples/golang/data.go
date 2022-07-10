@@ -14,19 +14,14 @@ type Friends struct {
 	Name StringOrNull `json:"name"`
 }
 
-type Android struct {
-	Manufacturer StringOrNull `json:"manufacturer"`
-	Model        StringOrNull `json:"model"`
-}
-
-type Ios struct {
+type AndroidOrIos struct {
 	Manufacturer StringOrNull `json:"manufacturer"`
 	Model        StringOrNull `json:"model"`
 }
 
 type Device struct {
-	Android *Android `json:"android"`
-	Ios     *Ios     `json:"ios"`
+	Android *AndroidOrIos `json:"android"`
+	Ios     *AndroidOrIos `json:"ios"`
 }
 
 type Base struct {
@@ -46,30 +41,28 @@ type Base struct {
 
 // データの識別子
 const (
-	Test01Android1   DataID = "Test01Android1"
-	Test01Ios1       DataID = "Test01Ios1"
-	Test01HairStyle1 DataID = "Test01HairStyle1"
-	Test01Friends1   DataID = "Test01Friends1"
-	Test01Friends2   DataID = "Test01Friends2"
-	Test01Device1    DataID = "Test01Device1"
-	Test01Base1      DataID = "Test01Base1"
-	Test02Friends2   DataID = "Test02Friends2"
-	Test02Base1      DataID = "Test02Base1"
-	Test04Friends3   DataID = "Test04Friends3"
-	Test04Base1      DataID = "Test04Base1"
+	Test01AndroidOrIos1 DataID = "Test01AndroidOrIos1"
+	Test01AndroidOrIos2 DataID = "Test01AndroidOrIos2"
+	Test01HairStyle1    DataID = "Test01HairStyle1"
+	Test01Friends1      DataID = "Test01Friends1"
+	Test01Friends2      DataID = "Test01Friends2"
+	Test01Device1       DataID = "Test01Device1"
+	Test01Base1         DataID = "Test01Base1"
+	Test04Friends3      DataID = "Test04Friends3"
+	Test04Base1         DataID = "Test04Base1"
 )
 
 // データ登録
 func RegisterData() {
 	f := Factory
-	f.Register(Test01Android1, func() interface{} {
-		return &Android{
+	f.Register(Test01AndroidOrIos1, func() interface{} {
+		return &AndroidOrIos{
 			Manufacturer: "google",
 			Model:        "pixel5",
 		}
 	})
-	f.Register(Test01Ios1, func() interface{} {
-		return &Ios{
+	f.Register(Test01AndroidOrIos2, func() interface{} {
+		return &AndroidOrIos{
 			Manufacturer: "apple",
 			Model:        "iphone12",
 		}
@@ -91,8 +84,8 @@ func RegisterData() {
 	})
 	f.Register(Test01Device1, func() interface{} {
 		return &Device{
-			Android: f.ChildNode(Test01Android1).(*Android),
-			Ios:     f.ChildNode(Test01Ios1).(*Ios),
+			Android: f.ChildNode(Test01AndroidOrIos1).(*AndroidOrIos),
+			Ios:     f.ChildNode(Test01AndroidOrIos2).(*AndroidOrIos),
 		}
 	})
 	f.Register(Test01Base1, func() interface{} {
@@ -121,22 +114,6 @@ func RegisterData() {
 			Device: f.ChildNode(Test01Device1).(*Device),
 		}
 	})
-	f.Register(Test02Friends2, func() interface{} {
-		data := f.InheritNode(Test01Friends2).(*Friends)
-		data.Name = "French\nMcneil"
-		return data
-	})
-	f.Register(Test02Base1, func() interface{} {
-		data := f.InheritNode(Test01Base1).(*Base)
-		data.IsActive = true
-		data.Friends[1] = f.ChildNode(Test01Friends2).(*Friends)
-		data.Groups = []Int64OrNull{
-			1,
-			2,
-			3,
-		}
-		return data
-	})
 	f.Register(Test04Friends3, func() interface{} {
 		return &Friends{
 			Id:   2,
@@ -156,6 +133,6 @@ func RegisterData() {
 
 var TestData = map[string]DataID{
 	"test01.json": Test01Base1,
-	"test02.json": Test02Base1,
+	"test02.json": Test01Base1,
 	"test04.json": Test04Base1,
 }

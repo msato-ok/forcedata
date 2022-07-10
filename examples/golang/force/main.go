@@ -2,10 +2,10 @@
 // +build test
 
 /*
-json のデータを作成するサンプル
+力指向グラフの html を作成するサンプル
 
 usege:
-go run -tags=test examples/golang/usagetree/main.go -outdir examples/json
+go run -tags=test examples/golang/force/main.go -out examples/force-data.js
 
 */
 
@@ -17,13 +17,13 @@ import (
 
 	"flag"
 	"fmt"
-
+	"io/ioutil"
 	"log"
 	"os"
 )
 
 var (
-	outdir string
+	out string
 )
 
 func main() {
@@ -38,7 +38,7 @@ func main() {
 }
 
 func init() {
-	flag.StringVar(&outdir, "outdir", "", "html 出力先ディレクトリ")
+	flag.StringVar(&out, "out", "", "出力するhtml")
 }
 
 func validateArgs() error {
@@ -49,7 +49,11 @@ func validateArgs() error {
 func execute() error {
 	golang.RegisterData()
 	bdata, _ := json.MarshalIndent(golang.Factory.NodeList(), "", "  ")
-	fmt.Printf("var usages = %s;\n", string(bdata))
+	text := fmt.Sprintf("var forceData = %s;\n", string(bdata))
+	err := ioutil.WriteFile(out, []byte(text), 0644)
+	if err != nil {
+		return err
+	}
 	fmt.Print("Done\n")
 	return nil
 }

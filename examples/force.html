@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>data relationships in a force-directed graph</title>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis-network.min.js"
+    integrity="sha512-GE9mKnPrTn2DY5AZuIC9yE6K4FF8T+9lsO7jwHn+RW9rEjnHzF/in0oGwlPzRwjhQ+oJiawmtfvleX+l6h5/cA=="
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis-network.min.css"
+    integrity="sha512-NJXM8vzWgDcBy9SCUTJXYnNO43sZV3pfLWWZMFTuCtEUIOcznk+AMpH6N3XruxavYfMeMmjrzDMEQ6psRh/6Hw=="
+    crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <style type="text/css">
+    #force-data {
+      width: 900px;
+      height: 700px;
+      border: 1px solid lightgray;
+    }
+  </style>
+</head>
+
+<body>
+  <p>Visualize the relationship of data with a force-directed graph</p>
+
+  <div id="force-data"></div>
+
+  <script type="text/javascript" src="force-data.js"></script>
+  <script type="text/javascript">
+    var nodeData = [];
+    var edgeData = [];
+    for (var i = 0; i < forceData.length; i++) {
+      nodeData.push({
+        id: forceData[i].dataId,
+        label: forceData[i].dataId
+      });
+      if (forceData[i].inheritdataId && forceData[i].inheritdataId.length > 0) {
+        var from = forceData[i].dataId;
+        var to = forceData[i].inheritdataId;
+        edgeData.push({
+          from: from,
+          to: to,
+          arrows: 'to',
+          mass: 2
+        });
+      }
+      if (forceData[i].properties) {
+        console.log(forceData[i].properties);
+        for (let childId of forceData[i].properties) {
+          edgeData.push({
+            from: forceData[i].dataId,
+            to: childId,
+          });
+          console.log({
+            from: forceData[i].dataId,
+            to: childId,
+          });
+        }
+      }
+    }
+
+    // create an array with nodes
+    var nodes = new vis.DataSet(nodeData);
+
+    // create an array with edges
+    var edges = new vis.DataSet(edgeData);
+
+    // create a network
+    var container = document.getElementById("force-data");
+    var data = {
+      nodes: nodes,
+      edges: edges,
+    };
+    var options = {};
+    var network = new vis.Network(container, data, options);
+
+  </script>
+</body>
+
+</html>
