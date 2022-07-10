@@ -1,6 +1,8 @@
 import { Command } from 'commander';
 import { JsonCommand } from './cmd/base';
-import { JsonToGoCommand, IJsonToGoCommand } from './cmd/json2go';
+import { IJsonToPgCodeCommandOpt } from './cmd/base';
+import { JsonToGoCommand } from './cmd/json2go';
+import { JsonToTsCommand } from './cmd/json2ts';
 import { JsonToTypeCommand, IJsonToTypeCommandOption } from './cmd/json2type';
 
 const packageJson = require('../package.json');
@@ -29,8 +31,21 @@ program
   .option('-m, --model <model name>', 'root model name')
   .option('-p, --package <package name>', 'package name')
   .option('-v, --verbose', 'verbose mode')
-  .action((pattern: string, option: IJsonToGoCommand): void => {
+  .action((pattern: string, option: IJsonToPgCodeCommandOpt): void => {
     const command = new JsonToGoCommand(option);
+    executeCommand(pattern, command);
+  });
+
+program
+  .command('json2ts <pattern>')
+  .description('generate typescript source code from json')
+  .requiredOption('-o, --output <file>', 'output source file')
+  .option('-t, --type <file>', 'type definition yaml')
+  .option('-m, --model <model name>', 'root model name')
+  .option('-p, --package <package name>', 'package name')
+  .option('-v, --verbose', 'verbose mode')
+  .action((pattern: string, option: IJsonToPgCodeCommandOpt): void => {
+    const command = new JsonToTsCommand(option);
     executeCommand(pattern, command);
   });
 

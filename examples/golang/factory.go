@@ -124,9 +124,9 @@ func (d *dataFactoryImpl) NodeList() []*DataNode {
 //
 
 type DataNode struct {
-	DataID        DataID
-	InheritDataID DataID
-	Properties    []DataID
+	DataID        DataID   `json:"dataId"`
+	InheritDataID DataID   `json:"inheritDataId"`
+	Properties    []DataID `json:"properties"`
 }
 
 func NewDataNode(dataID DataID) *DataNode {

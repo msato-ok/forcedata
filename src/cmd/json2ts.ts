@@ -1,10 +1,10 @@
 import { JsonCommand, AbstractPgCodeCommand, IJsonToPgCodeCommandOpt } from './base';
 import { JsonParser } from '../parser/parser';
 import { Printer } from '../printer/base';
-import { GolangPrinter } from '../printer/golang';
+import { TsPrinter } from '../printer/typescript';
 import path from 'path';
 
-export class JsonToGoCommand extends AbstractPgCodeCommand implements JsonCommand {
+export class JsonToTsCommand extends AbstractPgCodeCommand implements JsonCommand {
   constructor(option: IJsonToPgCodeCommandOpt, parser: JsonParser | null = null, printer: Printer | null = null) {
     if (printer == null) {
       let pkg = option.package;
@@ -16,7 +16,7 @@ export class JsonToGoCommand extends AbstractPgCodeCommand implements JsonComman
           pkg = lastdir;
         }
       }
-      printer = new GolangPrinter(pkg);
+      printer = new TsPrinter(pkg);
     }
     super(option, parser, printer);
   }

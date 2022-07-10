@@ -1,0 +1,103 @@
+types:
+  - typeName: HairStyle
+    fields: []
+  - typeName: Friends
+    fields:
+      - fieldName: id
+        systemType: +Int64
+        objectName: null
+        isArray: false
+      - fieldName: name
+        systemType: +String
+        objectName: null
+        isArray: false
+  - typeName: AndroidOrIos
+    fields:
+      - fieldName: manufacturer
+        systemType: +String
+        objectName: null
+        isArray: false
+      - fieldName: model
+        systemType: +String
+        objectName: null
+        isArray: false
+  - typeName: Device
+    fields:
+      - fieldName: android
+        systemType: +Object
+        objectName: AndroidOrIos
+        isArray: false
+      - fieldName: ios
+        systemType: +Object
+        objectName: AndroidOrIos
+        isArray: false
+  - typeName: Base
+    fields:
+      - fieldName: id
+        systemType: +String
+        objectName: null
+        isArray: false
+      - fieldName: is_active
+        systemType: +Bool
+        objectName: null
+        isArray: false
+      - fieldName: age
+        systemType: +Int64
+        objectName: null
+        isArray: false
+      - fieldName: name
+        systemType: +String
+        objectName: null
+        isArray: false
+      - fieldName: gender
+        systemType: +String
+        objectName: null
+        isArray: false
+      - fieldName: eye_color
+        systemType: +Unknown
+        objectName: null
+        isArray: false
+      - fieldName: hair_style
+        systemType: +Object
+        objectName: HairStyle
+        isArray: false
+      - fieldName: salery
+        systemType: +Int64
+        objectName: null
+        isArray: false
+      - fieldName: friends
+        systemType: +Object
+        objectName: Friends
+        isArray: true
+      - fieldName: groups
+        systemType: +Int64
+        objectName: null
+        isArray: true
+      - fieldName: rooms
+        systemType: +String
+        objectName: null
+        isArray: true
+      - fieldName: device
+        systemType: +Object
+        objectName: Device
+        isArray: false
+dataFiles:
+  - file: ./examples/json/test01.json
+    rootModel: Base
+    fieldTypeMap:
+      id: +String
+      is_active: +Bool
+      age: +Int64
+      name: +String
+      gender: +String
+      eye_color: +Unknown
+      hair_style: HairStyle
+      salery: +Int64
+      friends: Friends
+      friends.id: +Int64
+      friends.name: +String
+      groups: +Int64
+      rooms: +String
+      device: Device
+      device.android: AndroidOrIos
+      device.ios: AndroidOrIos
