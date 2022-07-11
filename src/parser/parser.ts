@@ -46,6 +46,7 @@ export class JsonParseResult {
         return;
       }
       cached.mergeFields(subType);
+      subType.mergeFields(cached);
     } else {
       this._subTypes.add(subType);
     }
@@ -91,12 +92,14 @@ export class JsonParseResult {
           continue;
         }
         if (field.systemType == SystemType.Object) {
-          let childDstArry = [];
-          if (field.isArray) {
-            childDstArry = dst.getArrayDataSubType(field.fieldName);
-          } else {
-            const childDst = dst.getDataSubType(field.fieldName);
-            childDstArry.push(childDst);
+          let childDstArry: DataSubType[] = [];
+          if (dst.hasValue(field.fieldName)) {
+            if (field.isArray) {
+              childDstArry = dst.getArrayDataSubType(field.fieldName);
+            } else {
+              const childDst = dst.getDataSubType(field.fieldName);
+              childDstArry.push(childDst);
+            }
           }
           for (let i = 0; i < childDstArry.length; i++) {
             const childDst = childDstArry[i];

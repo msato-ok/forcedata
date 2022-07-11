@@ -116,76 +116,95 @@ export class DataSubType {
     let notSameCount = 0;
     const diffValues: DiffValue[] = [];
     for (const field of this.subType.fields) {
+      const hasTarget = target.hasValue(field.fieldName);
+      const hasSrc = this.hasValue(field.fieldName);
       if (field.isArray) {
-        if (field.isPrimitiveType) {
-          const targetArray = target.getArrayValue(field.fieldName);
-          const srcArray = this.getArrayValue(field.fieldName);
-          if (targetArray.length != srcArray.length) {
-            notSameCount += srcArray.length;
+        if (field.isPrimitiveType || field.systemType == SystemType.Unknown) {
+          if (!hasTarget || !hasSrc) {
+            notSameCount++;
+            const srcArray = !hasSrc ? [] : this.getArrayValue(field.fieldName);
             diffValues.push(new DiffArrayAllValues(field, srcArray));
           } else {
-            for (let i = 0; i < srcArray.length; i++) {
-              if (srcArray[i] != targetArray[i]) {
-                notSameCount++;
-                diffValues.push(new DiffArrayValue(field, i, srcArray[i]));
-              } else {
-                sameCount++;
+            const targetArray = target.getArrayValue(field.fieldName);
+            const srcArray = this.getArrayValue(field.fieldName);
+            if (targetArray.length != srcArray.length) {
+              notSameCount += srcArray.length;
+              diffValues.push(new DiffArrayAllValues(field, srcArray));
+            } else {
+              for (let i = 0; i < srcArray.length; i++) {
+                if (srcArray[i] != targetArray[i]) {
+                  notSameCount++;
+                  diffValues.push(new DiffArrayValue(field, i, srcArray[i]));
+                } else {
+                  sameCount++;
+                }
               }
             }
           }
         } else if (field.systemType == SystemType.Object) {
-          const targetArray = target.getArrayDataSubType(field.fieldName);
-          const srcArray = this.getArrayDataSubType(field.fieldName);
-          if (targetArray.length != srcArray.length) {
-            notSameCount += srcArray.length;
+          if (!hasTarget || !hasSrc) {
+            notSameCount++;
+            const srcArray = !hasSrc ? null : this.getArrayDataSubType(field.fieldName);
             diffValues.push(new DiffArrayAllValues(field, srcArray));
           } else {
-            for (let i = 0; i < srcArray.length; i++) {
-              const similar = srcArray[i].updateSimilarData(targetArray[i]);
-              if (similar == null) {
-                throw new InvalidArgumentError(
-                  `同じ field type なので、similar=null なのはおかしい: ${this.dataName}.${field.fieldName} / ${target.dataName}.${field.fieldName}`
-                );
-              }
-              if (similar.notSameCount != 0) {
-                notSameCount++;
-                diffValues.push(new DiffArrayValue(field, i, srcArray[i]));
-              } else {
-                sameCount++;
+            const targetArray = target.getArrayDataSubType(field.fieldName);
+            const srcArray = this.getArrayDataSubType(field.fieldName);
+            if (targetArray.length != srcArray.length) {
+              notSameCount += srcArray.length;
+              diffValues.push(new DiffArrayAllValues(field, srcArray));
+            } else {
+              for (let i = 0; i < srcArray.length; i++) {
+                const similar = srcArray[i].updateSimilarData(targetArray[i]);
+                if (similar == null) {
+                  throw new InvalidArgumentError(
+                    `同じ field type なので、similar=null なのはおかしい: ${this.dataName}.${field.fieldName} / ${target.dataName}.${field.fieldName}`
+                  );
+                }
+                if (similar.notSameCount != 0) {
+                  notSameCount++;
+                  diffValues.push(new DiffArrayValue(field, i, srcArray[i]));
+                } else {
+                  sameCount++;
+                }
               }
             }
           }
         } else {
           throw new InvalidArgumentError(`unknown systemType: ${field.systemType}`);
         }
-      } else if (field.isPrimitiveType) {
-        if (target.getValue(field.fieldName) != this.getValue(field.fieldName)) {
+      } else if (field.isPrimitiveType || field.systemType == SystemType.Unknown) {
+        if (!hasTarget || !hasSrc) {
           notSameCount++;
-          diffValues.push(new DiffValue(field, this.getValue(field.fieldName)));
+          const srcValue = !hasSrc ? null : this.getValue(field.fieldName);
+          diffValues.push(new DiffArrayAllValues(field, srcValue));
         } else {
-          sameCount++;
-        }
-      } else if (field.systemType == SystemType.Unknown) {
-        if (target.getValue(field.fieldName) != this.getValue(field.fieldName)) {
-          notSameCount++;
-          diffValues.push(new DiffValue(field, this.getValue(field.fieldName)));
-        } else {
-          sameCount++;
+          if (target.getValue(field.fieldName) != this.getValue(field.fieldName)) {
+            notSameCount++;
+            diffValues.push(new DiffValue(field, this.getValue(field.fieldName)));
+          } else {
+            sameCount++;
+          }
         }
       } else if (field.systemType == SystemType.Object) {
-        const targetDataSubType = target.getDataSubType(field.fieldName);
-        const srcDataSubType = this.getDataSubType(field.fieldName);
-        const similar = srcDataSubType.updateSimilarData(targetDataSubType);
-        if (similar == null) {
-          throw new InvalidArgumentError(
-            `同じ field type なので、similar=null なのはおかしい: ${this.dataName}.${field.fieldName} / ${targetDataSubType.dataName}.${field.fieldName}`
-          );
-        }
-        if (similar.notSameCount != 0) {
+        if (!hasTarget || !hasSrc) {
           notSameCount++;
+          const srcDataSubType = !hasSrc ? null : this.getDataSubType(field.fieldName);
           diffValues.push(new DiffValue(field, srcDataSubType));
         } else {
-          sameCount++;
+          const targetDataSubType = target.getDataSubType(field.fieldName);
+          const srcDataSubType = this.getDataSubType(field.fieldName);
+          const similar = srcDataSubType.updateSimilarData(targetDataSubType);
+          if (similar == null) {
+            throw new InvalidArgumentError(
+              `同じ field type なので、similar=null なのはおかしい: ${this.dataName}.${field.fieldName} / ${targetDataSubType.dataName}.${field.fieldName}`
+            );
+          }
+          if (similar.notSameCount != 0) {
+            notSameCount++;
+            diffValues.push(new DiffValue(field, srcDataSubType));
+          } else {
+            sameCount++;
+          }
         }
       } else {
         throw new InvalidArgumentError(`unknown systemType: ${field.systemType}`);

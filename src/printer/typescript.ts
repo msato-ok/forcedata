@@ -98,7 +98,7 @@ class TsDataSubType {
     if (!this._dataSubType.similar) {
       throw new InvalidArgumentError();
     }
-    return this.makeDataId(this._dataSubType.similarAncesters.dataName);
+    return this.makeDataId(this._dataSubType.similar.dataSubType.dataName);
   }
 
   private makeDataId(dataName: string): string {
@@ -110,6 +110,9 @@ class TsDataSubType {
     let str = '{\n';
     for (const tsField of tsSubType.fields) {
       const field = tsField.orgField;
+      if (!this._dataSubType.hasValue(field.fieldName)) {
+        continue;
+      }
       if (field.systemType == SystemType.Object) {
         if (field.isArray) {
           const dsTypes = this._dataSubType.getArrayDataSubType(field.fieldName);

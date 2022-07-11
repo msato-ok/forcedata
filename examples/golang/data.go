@@ -57,6 +57,8 @@ const (
 	Test02Base1      DataID = "Test02Base1"
 	Test04Friends3   DataID = "Test04Friends3"
 	Test04Base1      DataID = "Test04Base1"
+	Test05Device1    DataID = "Test05Device1"
+	Test05Base1      DataID = "Test05Base1"
 )
 
 // データ登録
@@ -122,12 +124,12 @@ func RegisterData() {
 		}
 	})
 	f.Register(Test02Friends2, func() interface{} {
-		data := f.InheritNode(Test02Friends2).(*Friends)
+		data := f.InheritNode(Test01Friends2).(*Friends)
 		data.Name = "French\nMcneil2"
 		return data
 	})
 	f.Register(Test02Base1, func() interface{} {
-		data := f.InheritNode(Test02Base1).(*Base)
+		data := f.InheritNode(Test01Base1).(*Base)
 		data.IsActive = false
 		data.Friends[1] = f.ChildNode(Test02Friends2).(*Friends)
 		data.Groups = []Int64OrNull{
@@ -145,7 +147,7 @@ func RegisterData() {
 		}
 	})
 	f.Register(Test04Base1, func() interface{} {
-		data := f.InheritNode(Test04Base1).(*Base)
+		data := f.InheritNode(Test01Base1).(*Base)
 		data.Friends = []*Friends{
 			f.ChildNode(Test01Friends1).(*Friends),
 			f.ChildNode(Test01Friends2).(*Friends),
@@ -153,10 +155,22 @@ func RegisterData() {
 		}
 		return data
 	})
+	f.Register(Test05Device1, func() interface{} {
+		return &Device{}
+	})
+	f.Register(Test05Base1, func() interface{} {
+		return &Base{
+			Id:       "05",
+			Device:   f.ChildNode(Test05Device1).(*Device),
+			EyeColor: nil,
+		}
+	})
 }
 
 var TestData = map[string]DataID{
 	"test01.json": Test01Base1,
 	"test02.json": Test02Base1,
+	"test03.json": Test02Base1,
 	"test04.json": Test04Base1,
+	"test05.json": Test05Base1,
 }
