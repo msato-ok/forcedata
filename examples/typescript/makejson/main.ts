@@ -40,7 +40,7 @@ function executeCommand(option: IOption) {
     for (const [jsonFile, dataId] of Object.entries(TestData)) {
       const outputPath = path.join(option.output, jsonFile);
       const data = factory.get(dataId);
-      let text = JSON.stringify(data, null, '  ');
+      let text = JSON.stringify(data, replacer, '  ');
       text += '\n';
 
       console.log(`output ${outputPath} ...`);
@@ -59,4 +59,11 @@ function executeCommand(option: IOption) {
       console.error(e);
     }
   }
+}
+
+function replacer(key: string, value: unknown | null): unknown | undefined {
+  if (value === null) {
+    return undefined;
+  }
+  return value;
 }

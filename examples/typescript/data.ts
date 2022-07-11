@@ -50,7 +50,9 @@ export type MyDataId =
   | 'TEST02_FRIENDS_2'
   | 'TEST02_BASE_1'
   | 'TEST04_FRIENDS_3'
-  | 'TEST04_BASE_1';
+  | 'TEST04_BASE_1'
+  | 'TEST05_DEVICE_1'
+  | 'TEST05_BASE_1';
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace DATAID {
   export const TEST01_ANDROID_1: MyDataId = 'TEST01_ANDROID_1';
@@ -64,6 +66,8 @@ export namespace DATAID {
   export const TEST02_BASE_1: MyDataId = 'TEST02_BASE_1';
   export const TEST04_FRIENDS_3: MyDataId = 'TEST04_FRIENDS_3';
   export const TEST04_BASE_1: MyDataId = 'TEST04_BASE_1';
+  export const TEST05_DEVICE_1: MyDataId = 'TEST05_DEVICE_1';
+  export const TEST05_BASE_1: MyDataId = 'TEST05_BASE_1';
 }
 
 // データ登録
@@ -145,10 +149,21 @@ export function registerData() {
     ];
     return data;
   });
+  f.register(DATAID.TEST05_DEVICE_1, () => {
+    return {} as Device;
+  });
+  f.register(DATAID.TEST05_BASE_1, () => {
+    return {
+      id: '05',
+      device: f.childNode(DATAID.TEST05_DEVICE_1) as Device,
+    } as Base;
+  });
 }
 
 export const TestData = {
   'test01.json': DATAID.TEST01_BASE_1,
   'test02.json': DATAID.TEST02_BASE_1,
+  'test03.json': DATAID.TEST02_BASE_1,
   'test04.json': DATAID.TEST04_BASE_1,
+  'test05.json': DATAID.TEST05_BASE_1,
 };
