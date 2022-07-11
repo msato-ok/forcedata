@@ -8,7 +8,15 @@ export class DataSubType {
   private _values = new Map<string, unknown>();
   similar: SimilarData | null = null;
 
-  constructor(readonly subType: SubType, readonly dataName: string, readonly parent: DataSubType | null = null) {}
+  constructor(private _subType: SubType, readonly dataName: string, readonly parent: DataSubType | null = null) {}
+
+  get subType(): SubType {
+    return this._subType;
+  }
+
+  updateCachedSubType(subType: SubType) {
+    this._subType = subType;
+  }
 
   hasValue(fieldName: string): boolean {
     const val = this._values.get(fieldName);
@@ -33,7 +41,11 @@ export class DataSubType {
   }
 
   getArrayValue(fieldName: string): string[] | number[] | boolean[] {
-    return this._getValue(fieldName) as string[] | number[] | boolean[];
+    const vals = this._getValue(fieldName) as string[] | number[] | boolean[];
+    if (!Array.isArray(vals)) {
+      return [];
+    }
+    return vals;
   }
 
   getDataSubType(fieldName: string): DataSubType {
@@ -41,7 +53,11 @@ export class DataSubType {
   }
 
   getArrayDataSubType(fieldName: string): DataSubType[] {
-    return this._getValue(fieldName) as DataSubType[];
+    const vals = this._getValue(fieldName) as DataSubType[];
+    if (!Array.isArray(vals)) {
+      return [];
+    }
+    return vals;
   }
 
   /**
@@ -60,6 +76,19 @@ export class DataSubType {
       dst = dst.similar.dataSubType;
     }
     return dst;
+  }
+
+  /**
+   * 継承するオブジェクトを取得する
+   * 継承対象は、直近の similar データだが、そのオブジェクトが差分のない類似を持っている場合は、
+   * さらに遡って元を手繰り寄せる
+   */
+  get inheritDataSubType(): DataSubType {
+    if (!this.similar) {
+      throw new InvalidArgumentError();
+    }
+    const dst = this.similar.dataSubType;
+    return dst.similarAncesters;
   }
 
   private _setValue(fieldName: string, val: unknown) {

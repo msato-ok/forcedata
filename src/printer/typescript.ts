@@ -98,7 +98,7 @@ class TsDataSubType {
     if (!this._dataSubType.similar) {
       throw new InvalidArgumentError();
     }
-    return this.makeDataId(this._dataSubType.similar.dataSubType.dataName);
+    return this.makeDataId(this._dataSubType.inheritDataSubType.dataName);
   }
 
   private makeDataId(dataName: string): string {
@@ -118,22 +118,21 @@ class TsDataSubType {
           const dsTypes = this._dataSubType.getArrayDataSubType(field.fieldName);
           str += `${tsField.fieldName}: [\n`;
           for (const dst of dsTypes) {
-            if (dst.similar == null) {
-              const dataId = this.makeDataId(dst.dataName);
-              str += `f.childNode(DATAID.${dataId}) as ${dst.subType.typeName.name},\n`;
-            } else {
-              const dataId = this.makeDataId(dst.similar.dataSubType.dataName);
-              str += `f.childNode(DATAID.${dataId}) as ${dst.subType.typeName.name},\n`;
-            }
+            const dataId = this.makeDataId(dst.similarAncesters.dataName);
+            str += `f.childNode(DATAID.${dataId}) as ${dst.subType.typeName.name},\n`;
           }
           str += '],\n';
         } else {
-          const val = this._dataSubType.getDataSubType(field.fieldName);
-          const dataId = this.makeDataId(val.dataName);
-          str += `${tsField.fieldName}: f.childNode(DATAID.${dataId}) as ${val.subType.typeName.name},\n`;
+          const dst = this._dataSubType.getDataSubType(field.fieldName);
+          const dataId = this.makeDataId(dst.similarAncesters.dataName);
+          str += `${tsField.fieldName}: f.childNode(DATAID.${dataId}) as ${dst.subType.typeName.name},\n`;
         }
       } else if (field.systemType == SystemType.Unknown) {
-        str += `${tsField.fieldName}: null,\n`;
+        if (field.isArray) {
+          str += `${tsField.fieldName}: [] as ${tsField.typeName},\n`;
+        } else {
+          str += `${tsField.fieldName}: null,\n`;
+        }
       } else if (field.isPrimitiveType) {
         if (field.isArray) {
           const vals = this._dataSubType.getArrayValue(field.fieldName);
@@ -188,6 +187,12 @@ class TsDataSubType {
         } else {
           const p = this.primitiveToStr(diffValue.value);
           str += `data.${tsField.fieldName} = ${p}\n`;
+        }
+      } else if (field.systemType == SystemType.Unknown) {
+        if (field.isArray) {
+          str += `data.${tsField.fieldName} = [] as ${tsField.typeName};\n`;
+        } else {
+          str += `data.${tsField.fieldName} = null;\n`;
         }
       } else if (field.systemType == SystemType.Object) {
         if (field.isArray) {

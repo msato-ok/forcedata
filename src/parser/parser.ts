@@ -39,16 +39,17 @@ export class JsonParseResult {
     return s;
   }
 
-  putSubType(subType: SubType) {
+  putSubType(subType: SubType): SubType {
     const cached = this._subTypes.get(subType.key);
     if (cached) {
       if (cached.compare(subType)) {
-        return;
+        return cached;
       }
       cached.mergeFields(subType);
-      subType.mergeFields(cached);
+      return cached;
     } else {
       this._subTypes.add(subType);
+      return subType;
     }
   }
 
@@ -271,7 +272,8 @@ export class JsonParser {
         throw new InvalidArgumentError(`unknown systemType: ${field.fieldName} ${field.systemType}`);
       }
     }
-    this.result.putSubType(subType);
+    const cachedSubType = this.result.putSubType(subType);
+    dataSubType.updateCachedSubType(cachedSubType);
     return dataSubType;
   }
 }
