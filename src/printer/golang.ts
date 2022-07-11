@@ -96,7 +96,7 @@ class GolangDataSubType {
     if (!this._dataSubType.similar) {
       throw new InvalidArgumentError();
     }
-    return this.makeDataId(this._dataSubType.similar.dataSubType.dataName);
+    return this.makeDataId(this._dataSubType.inheritDataSubType.dataName);
   }
 
   private makeDataId(dataName: string): string {
@@ -108,44 +108,42 @@ class GolangDataSubType {
     let str = `${goSubType.typeName}{\n`;
     for (const goField of goSubType.fields) {
       const field = goField.orgField;
+      if (!this._dataSubType.hasValue(field.fieldName)) {
+        continue;
+      }
       if (field.systemType == SystemType.Object) {
-        if (this._dataSubType.hasValue(field.fieldName)) {
-          if (field.isArray) {
-            const dsTypes = this._dataSubType.getArrayDataSubType(field.fieldName);
-            str += `${goField.fieldName}: ${goField.typeName}{\n`;
-            for (const dst of dsTypes) {
-              if (dst.similar == null) {
-                const dataId = this.makeDataId(dst.dataName);
-                str += `f.ChildNode(${dataId}).(*${dst.subType.typeName.name}),\n`;
-              } else {
-                const dataId = this.makeDataId(dst.similar.dataSubType.dataName);
-                str += `f.ChildNode(${dataId}).(*${dst.subType.typeName.name}),\n`;
-              }
-            }
-            str += '},\n';
-          } else {
-            const val = this._dataSubType.getDataSubType(field.fieldName);
-            const dataId = this.makeDataId(val.dataName);
-            str += `${goField.fieldName}: f.ChildNode(${dataId}).(*${val.subType.typeName.name}),\n`;
+        if (field.isArray) {
+          const dsTypes = this._dataSubType.getArrayDataSubType(field.fieldName);
+          str += `${goField.fieldName}: ${goField.typeName}{\n`;
+          for (const dst of dsTypes) {
+            const dataId = this.makeDataId(dst.similarAncesters.dataName);
+            str += `f.ChildNode(${dataId}).(*${dst.subType.typeName.name}),\n`;
           }
+          str += '},\n';
+        } else {
+          const dst = this._dataSubType.getDataSubType(field.fieldName);
+          const dataId = this.makeDataId(dst.similarAncesters.dataName);
+          str += `${goField.fieldName}: f.ChildNode(${dataId}).(*${dst.subType.typeName.name}),\n`;
         }
       } else if (field.systemType == SystemType.Unknown) {
-        str += `${goField.fieldName}: nil,\n`;
+        if (field.isArray) {
+          str += `${goField.fieldName}: ${goField.typeName}{},\n`;
+        } else {
+          str += `${goField.fieldName}: nil,\n`;
+        }
       } else if (field.isPrimitiveType) {
-        if (this._dataSubType.hasValue(field.fieldName)) {
-          if (field.isArray) {
-            const vals = this._dataSubType.getArrayValue(field.fieldName);
-            str += `${goField.fieldName}: ${goField.typeName}{\n`;
-            for (const val of vals) {
-              const pstr = this.primitiveToStr(val);
-              str += `${pstr},\n`;
-            }
-            str += '},\n';
-          } else {
-            const val = this._dataSubType.getValue(field.fieldName);
+        if (field.isArray) {
+          const vals = this._dataSubType.getArrayValue(field.fieldName);
+          str += `${goField.fieldName}: ${goField.typeName}{\n`;
+          for (const val of vals) {
             const pstr = this.primitiveToStr(val);
-            str += `${goField.fieldName}: ${pstr},\n`;
+            str += `${pstr},\n`;
           }
+          str += '},\n';
+        } else {
+          const val = this._dataSubType.getValue(field.fieldName);
+          const pstr = this.primitiveToStr(val);
+          str += `${goField.fieldName}: ${pstr},\n`;
         }
       } else {
         throw new InvalidArgumentError(`systemType が不明: systemType=${field.systemType}`);
@@ -187,6 +185,12 @@ class GolangDataSubType {
         } else {
           const p = this.primitiveToStr(diffValue.value);
           str += `data.${goField.fieldName} = ${p}\n`;
+        }
+      } else if (field.systemType == SystemType.Unknown) {
+        if (field.isArray) {
+          str += `data.${goField.fieldName} = ${goField.typeName}{}\n`;
+        } else {
+          str += `data.${goField.fieldName} = nil\n`;
         }
       } else if (field.systemType == SystemType.Object) {
         if (field.isArray) {
