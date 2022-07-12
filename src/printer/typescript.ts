@@ -203,18 +203,22 @@ class TsDataSubType {
             } else {
               str += `data.${tsField.fieldName} = [\n`;
               for (const childDst of childrenDataSubType) {
-                const dataId = this.makeDataId(childDst.similarAncesters.dataName);
-                str += `f.childNode(DATAID.${dataId}) as ${childDst.subType.typeName.name},\n`;
+                if (childDst == null) {
+                  str += 'null,\n';
+                } else {
+                  const dataId = this.makeDataId(childDst.similarAncesters.dataName);
+                  str += `f.childNode(DATAID.${dataId}) as ${childDst.subType.typeName.name},\n`;
+                }
               }
               str += ']\n';
             }
           } else if (diffValue instanceof DiffArrayValue) {
             const diffArrVal = diffValue;
             const childDst = diffValue.value as DataSubType;
-            const dataId = this.makeDataId(childDst.similarAncesters.dataName);
             if (childDst == null) {
               str += `data.${tsField.fieldName}[${diffArrVal.arrIindex}] = null\n`;
             } else {
+              const dataId = this.makeDataId(childDst.similarAncesters.dataName);
               str += `data.${tsField.fieldName}[${diffArrVal.arrIindex}] = f.childNode(DATAID.${dataId}) as ${childDst.subType.typeName.name}\n`;
             }
           } else {
@@ -222,10 +226,10 @@ class TsDataSubType {
           }
         } else {
           const childDst = diffValue.value as DataSubType;
-          const dataId = this.makeDataId(childDst.similarAncesters.dataName);
           if (childDst == null) {
             str += `data.${tsField.fieldName} = null\n`;
           } else {
+            const dataId = this.makeDataId(childDst.similarAncesters.dataName);
             str += `data.${tsField.fieldName} = f.childNode(DATAID.${dataId}) as ${childDst.subType.typeName.name}\n`;
           }
         }
