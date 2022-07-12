@@ -196,24 +196,40 @@ class GolangDataSubType {
         if (field.isArray) {
           if (diffValue instanceof DiffArrayAllValues) {
             const childrenDataSubType = diffValue.value as DataSubType[];
-            str += `data.${goField.fieldName} = ${goField.typeName}{\n`;
-            for (const childDst of childrenDataSubType) {
-              const dataId = this.makeDataId(childDst.similarAncesters.dataName);
-              str += `f.ChildNode(${dataId}).(*${childDst.subType.typeName.name}),\n`;
+            if (childrenDataSubType == null) {
+              str += `data.${goField.fieldName} = nil\n`;
+            } else {
+              str += `data.${goField.fieldName} = ${goField.typeName}{\n`;
+              for (const childDst of childrenDataSubType) {
+                const dataId = this.makeDataId(childDst.similarAncesters.dataName);
+                if (childDst == null) {
+                  str += 'nil,\n';
+                } else {
+                  str += `f.ChildNode(${dataId}).(*${childDst.subType.typeName.name}),\n`;
+                }
+              }
+              str += '}\n';
             }
-            str += '}\n';
           } else if (diffValue instanceof DiffArrayValue) {
             const diffArrVal = diffValue;
             const childDst = diffValue.value as DataSubType;
             const dataId = this.makeDataId(childDst.similarAncesters.dataName);
-            str += `data.${goField.fieldName}[${diffArrVal.arrIindex}] = f.ChildNode(${dataId}).(*${childDst.subType.typeName.name})\n`;
+            if (childDst == null) {
+              str += `data.${goField.fieldName}[${diffArrVal.arrIindex}] = nil\n`;
+            } else {
+              str += `data.${goField.fieldName}[${diffArrVal.arrIindex}] = f.ChildNode(${dataId}).(*${childDst.subType.typeName.name})\n`;
+            }
           } else {
             throw new InvalidArgumentError(`unknown instance type: ${typeof diffValue}`);
           }
         } else {
           const childDst = diffValue.value as DataSubType;
           const dataId = this.makeDataId(childDst.similarAncesters.dataName);
-          str += `data.${goField.fieldName} = f.ChildNode(${dataId}).(${childDst.subType.typeName.name})\n`;
+          if (childDst == null) {
+            str += `data.${goField.fieldName} = nil\n`;
+          } else {
+            str += `data.${goField.fieldName} = f.ChildNode(${dataId}).(${childDst.subType.typeName.name})\n`;
+          }
         }
       } else {
         throw new InvalidArgumentError(`systemType が不明: systemType=${field.systemType}`);
@@ -223,6 +239,9 @@ class GolangDataSubType {
   }
 
   private primitiveToStr(val: unknown): string {
+    if (val == null) {
+      return 'nil';
+    }
     if (util.isString(val)) {
       return JSON.stringify(val);
     }
