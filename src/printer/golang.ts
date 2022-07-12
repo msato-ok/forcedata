@@ -201,10 +201,10 @@ class GolangDataSubType {
             } else {
               str += `data.${goField.fieldName} = ${goField.typeName}{\n`;
               for (const childDst of childrenDataSubType) {
-                const dataId = this.makeDataId(childDst.similarAncesters.dataName);
                 if (childDst == null) {
                   str += 'nil,\n';
                 } else {
+                  const dataId = this.makeDataId(childDst.similarAncesters.dataName);
                   str += `f.ChildNode(${dataId}).(*${childDst.subType.typeName.name}),\n`;
                 }
               }
@@ -213,10 +213,10 @@ class GolangDataSubType {
           } else if (diffValue instanceof DiffArrayValue) {
             const diffArrVal = diffValue;
             const childDst = diffValue.value as DataSubType;
-            const dataId = this.makeDataId(childDst.similarAncesters.dataName);
             if (childDst == null) {
               str += `data.${goField.fieldName}[${diffArrVal.arrIindex}] = nil\n`;
             } else {
+              const dataId = this.makeDataId(childDst.similarAncesters.dataName);
               str += `data.${goField.fieldName}[${diffArrVal.arrIindex}] = f.ChildNode(${dataId}).(*${childDst.subType.typeName.name})\n`;
             }
           } else {
@@ -224,10 +224,10 @@ class GolangDataSubType {
           }
         } else {
           const childDst = diffValue.value as DataSubType;
-          const dataId = this.makeDataId(childDst.similarAncesters.dataName);
           if (childDst == null) {
             str += `data.${goField.fieldName} = nil\n`;
           } else {
+            const dataId = this.makeDataId(childDst.similarAncesters.dataName);
             str += `data.${goField.fieldName} = f.ChildNode(${dataId}).(${childDst.subType.typeName.name})\n`;
           }
         }
