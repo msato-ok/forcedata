@@ -66,6 +66,10 @@ const (
 
 // データ登録
 func RegisterData() {
+	RegisterGroup1()
+}
+
+func RegisterGroup1() {
 	f := Factory
 	f.Register(Test01Android1, func() interface{} {
 		return &Android{

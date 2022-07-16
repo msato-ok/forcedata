@@ -1,359 +1,287 @@
 import fs from 'fs';
 import ejs from 'ejs';
 import { execSync } from 'child_process';
-import { SubTypeBase, SubTypeField, SystemType } from '../spec/sub_type';
-import { DataSubType, DataFile, DiffArrayAllValues, DiffArrayValue } from '../spec/data_file';
+import { SubTypeName, SubTypeField, SystemType } from '../spec/sub_type';
+import { DataFile } from '../spec/data_file';
+import { DataSubType } from '../spec/data_file';
 import { InvalidArgumentError } from '../common/base';
 import { JsonParseResult } from '../parser/parser';
+import { Printer } from './base';
+import {
+  ObjectItemId,
+  ProgramCodeConverter,
+  SubTypeFieldFragment,
+  FactoryRegistrationFlagment,
+  FactoryRegistrationInheritFlagment,
+  ObjectItemFragment,
+  ObjectArrayFragment,
+  ObjectArrayFullFragment,
+  PrimitiveItemFragment,
+  PrimitiveArrayFragment,
+  PrimitiveArrayFullFragment,
+  UnknownItemFragment,
+  UnknownArrayFragment,
+  TestDataFragment,
+  AbstractProgramCodeConverter,
+} from './converter';
 import * as util from '../common/util';
-import path from 'path';
 
-class TsSubTypeField {
-  readonly fieldName: string;
+export class TsPrinter implements Printer {
+  private _converter: ProgramCodeConverter;
 
-  constructor(readonly orgField: SubTypeField) {
-    this.fieldName = orgField.fieldName;
-  }
-
-  get typeName(): string {
-    let t: string;
-    switch (this.orgField.systemType) {
-      case SystemType.Bool:
-        t = 'boolean';
-        break;
-      case SystemType.Int64:
-        t = 'number';
-        break;
-      case SystemType.String:
-        t = 'string';
-        break;
-      case SystemType.Unknown:
-        t = 'unknown';
-        break;
-      case SystemType.Object:
-        if (!this.orgField.objectName) {
-          throw new InvalidArgumentError('"SystemType.Object" where objectName is required');
-        }
-        t = this.orgField.objectName;
-        break;
-      default:
-        throw new InvalidArgumentError(`unknown systemType: ${this.orgField.systemType}`);
-    }
-    if (this.orgField.isArray) {
-      t = `${t}[]`;
-    }
-    return t;
-  }
-}
-
-class TsSubType {
-  private _tsFields: TsSubTypeField[] = [];
-
-  constructor(private _orgSubTyp: SubTypeBase) {
-    for (const field of _orgSubTyp.fields) {
-      const tsField = new TsSubTypeField(field);
-      this._tsFields.push(tsField);
-    }
-  }
-
-  get isEmptyField(): boolean {
-    if (this._tsFields.length == 0) {
-      return true;
-    }
-    return false;
-  }
-
-  get typeName(): string {
-    return this._orgSubTyp.typeName.name;
-  }
-
-  get fields(): TsSubTypeField[] {
-    return this._tsFields;
-  }
-}
-
-class TsDataSubType {
-  readonly modelStr: string;
-  readonly reuseStr: string;
-
-  constructor(private _dataSubType: DataSubType) {
-    this.modelStr = '';
-    this.reuseStr = '';
-    if (_dataSubType.similar == null) {
-      this.modelStr += this.dataSubTypeToStr();
+  constructor(private packageName: string, readonly converter: ProgramCodeConverter | null = null) {
+    if (converter) {
+      this._converter = converter;
     } else {
-      this.reuseStr = this.similarToReuseStr();
+      this._converter = new TsCodeConverter();
     }
   }
-
-  get returnTypeName(): string {
-    return this._dataSubType.subType.typeName.name;
-  }
-
-  get dataId(): string {
-    return this.makeDataId(this._dataSubType.dataName);
-  }
-
-  get similarDataId(): string {
-    if (!this._dataSubType.similar) {
-      throw new InvalidArgumentError();
-    }
-    return this.makeDataId(this._dataSubType.inheritDataSubType.dataName);
-  }
-
-  private makeDataId(dataName: string): string {
-    return util.snakeCase(dataName).toUpperCase();
-  }
-
-  private dataSubTypeToStr(): string {
-    const tsSubType = new TsSubType(this._dataSubType.subType);
-    let str = '{\n';
-    for (const tsField of tsSubType.fields) {
-      const field = tsField.orgField;
-      if (!this._dataSubType.hasValue(field.fieldName)) {
-        continue;
-      }
-      if (field.systemType == SystemType.Object) {
-        if (field.isArray) {
-          const dsTypes = this._dataSubType.getArrayDataSubType(field.fieldName);
-          str += `${tsField.fieldName}: [\n`;
-          for (const dst of dsTypes) {
-            const dataId = this.makeDataId(dst.similarAncesters.dataName);
-            str += `f.childNode(DATAID.${dataId}) as ${dst.subType.typeName.name},\n`;
-          }
-          str += '],\n';
-        } else {
-          const dst = this._dataSubType.getDataSubType(field.fieldName);
-          const dataId = this.makeDataId(dst.similarAncesters.dataName);
-          str += `${tsField.fieldName}: f.childNode(DATAID.${dataId}) as ${dst.subType.typeName.name},\n`;
-        }
-      } else if (field.systemType == SystemType.Unknown) {
-        if (field.isArray) {
-          str += `${tsField.fieldName}: [] as ${tsField.typeName},\n`;
-        } else {
-          str += `${tsField.fieldName}: null,\n`;
-        }
-      } else if (field.isPrimitiveType) {
-        if (field.isArray) {
-          const vals = this._dataSubType.getArrayValue(field.fieldName);
-          str += `${tsField.fieldName}: [\n`;
-          for (const val of vals) {
-            const pstr = this.primitiveToStr(val);
-            str += `${pstr},\n`;
-          }
-          str += '],\n';
-        } else {
-          const val = this._dataSubType.getValue(field.fieldName);
-          const pstr = this.primitiveToStr(val);
-          str += `${tsField.fieldName}: ${pstr},\n`;
-        }
-      } else {
-        throw new InvalidArgumentError(`systemType が不明: systemType=${field.systemType}`);
-      }
-    }
-    str += `} as ${tsSubType.typeName}\n`;
-    return str;
-  }
-
-  get hasSimilar(): boolean {
-    return this._dataSubType.similar ? true : false;
-  }
-
-  private similarToReuseStr(): string {
-    if (!this._dataSubType.similar) {
-      return '';
-    }
-    let str = '';
-    for (const diffValue of this._dataSubType.similar.diffValues) {
-      const field = diffValue.field;
-      const tsField = new TsSubTypeField(field);
-      if (field.isPrimitiveType) {
-        if (field.isArray) {
-          if (diffValue instanceof DiffArrayAllValues) {
-            const data = diffValue.value as string[] | number[] | boolean[];
-            str += `data.${tsField.fieldName} = [\n`;
-            for (const datum of data) {
-              const p = this.primitiveToStr(datum);
-              str += `${p},\n`;
-            }
-            str += ']\n';
-          } else if (diffValue instanceof DiffArrayValue) {
-            const diffArrVal = diffValue;
-            const p = this.primitiveToStr(diffArrVal.value);
-            str += `data.${tsField.fieldName}[${diffArrVal.arrIindex}] = ${p}\n`;
-          } else {
-            throw new InvalidArgumentError(`unknown instance type: ${typeof diffValue}`);
-          }
-        } else {
-          const p = this.primitiveToStr(diffValue.value);
-          str += `data.${tsField.fieldName} = ${p}\n`;
-        }
-      } else if (field.systemType == SystemType.Unknown) {
-        if (field.isArray) {
-          str += `data.${tsField.fieldName} = [] as ${tsField.typeName};\n`;
-        } else {
-          str += `data.${tsField.fieldName} = null;\n`;
-        }
-      } else if (field.systemType == SystemType.Object) {
-        if (field.isArray) {
-          if (diffValue instanceof DiffArrayAllValues) {
-            const childrenDataSubType = diffValue.value as DataSubType[];
-            if (childrenDataSubType == null) {
-              str += `data.${tsField.fieldName} = null\n`;
-            } else {
-              str += `data.${tsField.fieldName} = [\n`;
-              for (const childDst of childrenDataSubType) {
-                if (childDst == null) {
-                  str += 'null,\n';
-                } else {
-                  const dataId = this.makeDataId(childDst.similarAncesters.dataName);
-                  str += `f.childNode(DATAID.${dataId}) as ${childDst.subType.typeName.name},\n`;
-                }
-              }
-              str += ']\n';
-            }
-          } else if (diffValue instanceof DiffArrayValue) {
-            const diffArrVal = diffValue;
-            const childDst = diffValue.value as DataSubType;
-            if (childDst == null) {
-              str += `data.${tsField.fieldName}[${diffArrVal.arrIindex}] = null\n`;
-            } else {
-              const dataId = this.makeDataId(childDst.similarAncesters.dataName);
-              str += `data.${tsField.fieldName}[${diffArrVal.arrIindex}] = f.childNode(DATAID.${dataId}) as ${childDst.subType.typeName.name}\n`;
-            }
-          } else {
-            throw new InvalidArgumentError(`unknown instance type: ${typeof diffValue}`);
-          }
-        } else {
-          const childDst = diffValue.value as DataSubType;
-          if (childDst == null) {
-            str += `data.${tsField.fieldName} = null\n`;
-          } else {
-            const dataId = this.makeDataId(childDst.similarAncesters.dataName);
-            str += `data.${tsField.fieldName} = f.childNode(DATAID.${dataId}) as ${childDst.subType.typeName.name}\n`;
-          }
-        }
-      } else {
-        throw new InvalidArgumentError(`systemType が不明: systemType=${field.systemType}`);
-      }
-    }
-    return str;
-  }
-
-  private primitiveToStr(val: unknown): string {
-    if (val == null) {
-      return 'null';
-    }
-    if (util.isString(val)) {
-      return JSON.stringify(val);
-    }
-    const n = val as number;
-    if (n >= Number.MAX_SAFE_INTEGER) {
-      return `${val}`;
-    } else {
-      return `${val}`;
-    }
-  }
-}
-
-class TsDataFile {
-  constructor(private _dataFile: DataFile) {}
-
-  get rootDataId(): string {
-    const goDataSubType = new TsDataSubType(this._dataFile.rootDataSubType);
-    return goDataSubType.dataId;
-  }
-
-  get rootSubTypeName(): string {
-    return this._dataFile.rootDataSubType.subType.typeName.name;
-  }
-
-  get file(): string {
-    return this._dataFile.file;
-  }
-
-  get baseFile(): string {
-    return this._dataFile.baseFile;
-  }
-}
-
-export class TsPrinter {
-  constructor(private packageName: string) {}
 
   print(parseResult: JsonParseResult, outputPath: string) {
-    const tsSubTypes = [];
-    for (const subType of parseResult.subTypes) {
-      tsSubTypes.push(new TsSubType(subType));
-    }
-    const tsDataSubTypes = [];
-    for (const dst of parseResult.dataSubTypesSortedByRegistration) {
-      tsDataSubTypes.push(new TsDataSubType(dst));
-    }
-    const tsDataFiles = [];
-    for (const dataFile of parseResult.dataFiles) {
-      tsDataFiles.push(new TsDataFile(dataFile));
-    }
+    const pc = this._converter.convert(parseResult);
     const data = {
-      packageName: this.packageName,
-      outputPath: outputPath,
-      jsonOutputDir: path.dirname(outputPath),
-      tsSubTypes: tsSubTypes,
-      tsDataSubTypes: tsDataSubTypes,
-      tsDataFiles: tsDataFiles,
+      pc: pc,
     };
     const template = `
 import { factory } from './factory';
 
-<%_ tsSubTypes.forEach((tsSubType) => { %>
-  <%_ if (tsSubType.isEmptyField) { _%>
+<%_ pc.subTypeDefinitionFragments.forEach((sunTypeDefn) => { %>
+  <%_ if (sunTypeDefn.fields.length == 0) { _%>
     // eslint-disable-next-line @typescript-eslint/no-empty-interface
   <%_ } _%>
-  export interface <%= tsSubType.typeName %> {
-    <%_ tsSubType.fields.forEach((tsField) => { _%>
-      <%= tsField.fieldName %>: <%= tsField.typeName %>
+  export interface <%= sunTypeDefn.subTypeName %> {
+    <%_ sunTypeDefn.fields.forEach((field) => { _%>
+      <%= field.fieldName %>: <%= field.typeName %>
     <%_ }); _%>
   }
 <% }); %>
 
 // データの識別子
-export type MyDataId =
-<%_ tsDataSubTypes.forEach((goDataSubType, index) => { _%>
-  <%- (index > 0 ? '| ': '  ') + "'" + goDataSubType.dataId + "'" %>
-<%_ }); _%>
-;
-// eslint-disable-next-line @typescript-eslint/no-namespace
-export namespace DATAID {
-  <%_ tsDataSubTypes.forEach((goDataSubType) => { _%>
-    export const <%= goDataSubType.dataId %>: MyDataId = '<%= goDataSubType.dataId %>';
+export const DATAID = {
+  <%_ pc.dataIdConstantFragments.forEach((dataId) => { _%>
+    <%= dataId %>: '<%= dataId %>',
   <%_ }); _%>
-}
+} as const;
+export type DATAID = typeof DATAID[keyof typeof DATAID];
 
 // データ登録
 export function registerData() {
-	const f = factory;
-  <%_ tsDataSubTypes.forEach((goDataSubType) => { _%>
-    <%_ if (!goDataSubType.hasSimilar) { _%>
-      f.register(DATAID.<%= goDataSubType.dataId %>, () => {
-        return <%- goDataSubType.modelStr _%>
-      });
-    <%_ } else { _%>
-      f.register(DATAID.<%= goDataSubType.dataId %>, () => {
-        const data = f.inheritNode(DATAID.<%= goDataSubType.similarDataId %>) as <%- goDataSubType.returnTypeName _%>;
-        <%- goDataSubType.reuseStr _%>
-        return data;
-      });
-    <%_ } _%>
+  <%_ pc.registrationGroupFragments.forEach((group) => { _%>
+    registerGroup<%= group.groupNo %>();
   <%_ }); _%>
 }
 
+<%_ pc.registrationGroupFragments.forEach((group) => { _%>
+  export function registerGroup<%= group.groupNo %>() {
+    const f = factory;
+    <%_ group.factoryRegistrationFlagments.forEach((fRegister) => { _%>
+      f.register(DATAID.<%= fRegister.objectId.dataId %>, () => {
+        <%- fRegister.text _%>
+      });
+    <%_ }); _%>
+  }
+<%_ }); _%>
+
 export const TestData = {
-  <%_ tsDataFiles.forEach((goDataFile) => { _%>
-    "<%= goDataFile.baseFile %>": DATAID.<%= goDataFile.rootDataId %>,
+  <%_ pc.testDataFragment.forEach((testData) => { _%>
+    "<%= testData.fileName %>": DATAID.<%= testData.rootDataId %>,
   <%_ }); _%>
 };
 `;
     const text = ejs.render(template, data, {});
     fs.writeFileSync(outputPath, text);
     execSync(`eslint ${outputPath} --fix`);
+  }
+}
+
+function primitiveToStr(val: unknown): string {
+  if (val == null) {
+    return 'null';
+  }
+  if (util.isString(val)) {
+    return JSON.stringify(val);
+  }
+  return `${val}`;
+}
+
+export class TsRegistrationFlagment extends FactoryRegistrationFlagment {
+  constructor(s: FactoryRegistrationFlagment, readonly text: string) {
+    super(s.objectId, s.subType, s.dataItems);
+  }
+}
+
+export class TsCodeConverter extends AbstractProgramCodeConverter {
+  convertSubTypeFieldFragment(field: SubTypeField): SubTypeFieldFragment {
+    let typeName: string;
+    switch (field.systemType) {
+      case SystemType.Bool:
+        typeName = 'boolean';
+        break;
+      case SystemType.Int64:
+        typeName = 'number';
+        break;
+      case SystemType.String:
+        typeName = 'string';
+        break;
+      case SystemType.Unknown:
+        typeName = 'unknown';
+        break;
+      case SystemType.Object:
+        if (!field.objectName) {
+          throw new InvalidArgumentError('"SystemType.Object" where objectName is required');
+        }
+        typeName = field.objectName;
+        break;
+      default:
+        throw new InvalidArgumentError(`unknown systemType: ${field.systemType}`);
+    }
+    const typeNameSingle = typeName;
+    if (field.isArray) {
+      typeName = `${typeName}[]`;
+    }
+    return new SubTypeFieldFragment(field.fieldName, typeName, typeNameSingle, field.fieldName);
+  }
+
+  convertObjectItemId(dataName: string, subTypeName: SubTypeName): ObjectItemId {
+    const dataId = util.snakeCase(dataName).toUpperCase();
+    return super.convertObjectItemId(dataId, subTypeName);
+  }
+
+  convertFactoryRegistration(dataSubType: DataSubType): FactoryRegistrationFlagment {
+    const s = super.convertFactoryRegistration(dataSubType);
+    const renderText = this.renderFactoryRegistrationFlagment(s);
+    return new TsRegistrationFlagment(s, renderText);
+  }
+
+  renderFactoryRegistrationFlagment(fr: FactoryRegistrationFlagment): string {
+    if (fr instanceof FactoryRegistrationInheritFlagment) {
+      return this.renderInheritRegisterString(fr);
+    } else {
+      return this.renderNewRegisterString(fr);
+    }
+  }
+
+  convertTestDataCode(dataFile: DataFile): TestDataFragment {
+    return {
+      fileName: dataFile.baseFile,
+      rootDataId: util.snakeCase(dataFile.rootDataSubType.dataName).toUpperCase(),
+    };
+  }
+
+  renderNewRegisterString(fr: FactoryRegistrationFlagment): string {
+    let str = 'return {\n';
+    for (const objItem of fr.dataItems) {
+      if (objItem instanceof ObjectItemFragment) {
+        const o = objItem;
+        if (!o.dataItem) {
+          str += `${o.field.fieldName}: null,\n`;
+        } else {
+          str += `${o.field.fieldName}: f.childNode(DATAID.${o.dataItem.dataId}) as ${o.dataItem.typeName},\n`;
+        }
+      } else if (objItem instanceof ObjectArrayFragment) {
+        throw new InvalidArgumentError(
+          `renderFactoryRegistrationFlagment ので配列型は、新規にインスタンス化されるタイプなので、配列番号が個別に指定される ObjectArrayFragment はありえない ${objItem.field.fieldName} ${objItem.arrayIndex}`
+        );
+      } else if (objItem instanceof ObjectArrayFullFragment) {
+        const o = objItem;
+        if (!o.dataItems) {
+          str += `${o.field.fieldName}: null,\n`;
+        } else {
+          str += `${o.field.fieldName}: [\n`;
+          for (const item of o.dataItems) {
+            if (!item) {
+              str += 'null,\n';
+            } else {
+              str += `f.childNode(DATAID.${item.dataId}) as ${item.typeName},\n`;
+            }
+          }
+          str += '],\n';
+        }
+      } else if (objItem instanceof PrimitiveItemFragment) {
+        const o = objItem;
+        const pstr = primitiveToStr(o.value);
+        str += `${o.field.fieldName}: ${pstr},\n`;
+      } else if (objItem instanceof PrimitiveArrayFragment) {
+        throw new InvalidArgumentError(
+          `renderFactoryRegistrationFlagment ので配列型は、新規にインスタンス化されるタイプなので、配列番号が個別に指定される ObjectArrayFragment はありえない ${objItem.field.fieldName} ${objItem.arrayIndex}`
+        );
+      } else if (objItem instanceof PrimitiveArrayFullFragment) {
+        const o = objItem;
+        str += `${o.field.fieldName}: [\n`;
+        for (const value of o.values) {
+          const pstr = primitiveToStr(value);
+          str += `${pstr},\n`;
+        }
+        str += '],\n';
+      } else if (objItem instanceof UnknownItemFragment) {
+        str += `${objItem.field.fieldName}: null,\n`;
+      } else if (objItem instanceof UnknownArrayFragment) {
+        str += `${objItem.field.fieldName}: [] as ${objItem.field.typeName},\n`;
+      } else {
+        throw new InvalidArgumentError(`objItem が不明: ${objItem.field.fieldName}`);
+      }
+    }
+    str += `} as ${fr.objectId.typeName}\n`;
+    return str;
+  }
+
+  renderInheritRegisterString(fr: FactoryRegistrationInheritFlagment): string {
+    let str = `const data = f.inheritNode(DATAID.${fr.inheritObjectId.dataId}) as ${fr.objectId.typeName};\n`;
+    for (const objItem of fr.dataItems) {
+      if (objItem instanceof ObjectItemFragment) {
+        const o = objItem;
+        if (!o.dataItem) {
+          str += `data.${o.field.fieldName} = null;\n`;
+        } else {
+          str += `data.${o.field.fieldName} = f.childNode(DATAID.${o.dataItem.dataId}) as ${o.dataItem.typeName};\n`;
+        }
+      } else if (objItem instanceof ObjectArrayFragment) {
+        const o = objItem;
+        if (!o.dataItem) {
+          str += `data.${o.field.fieldName}[${o.arrayIndex}] = null;\n`;
+        } else {
+          str += `data.${o.field.fieldName}[${o.arrayIndex}] = f.childNode(DATAID.${o.dataItem.dataId}) as ${o.dataItem.typeName};\n`;
+        }
+      } else if (objItem instanceof ObjectArrayFullFragment) {
+        const o = objItem;
+        if (!o.dataItems) {
+          str += `data.${o.field.fieldName} = null;\n`;
+        } else {
+          str += `data.${o.field.fieldName} = [\n`;
+          for (const item of o.dataItems) {
+            if (!item) {
+              str += 'null,\n';
+            } else {
+              str += `f.childNode(DATAID.${item.dataId}) as ${o.field.typeNameSingle},\n`;
+            }
+          }
+          str += '];\n';
+        }
+      } else if (objItem instanceof PrimitiveItemFragment) {
+        const o = objItem;
+        const p = primitiveToStr(o.value);
+        str += `data.${o.field.fieldName} = ${p};\n`;
+      } else if (objItem instanceof PrimitiveArrayFragment) {
+        const o = objItem;
+        const p = primitiveToStr(o.value);
+        str += `data.${o.field.fieldName}[${o.arrayIndex}] = ${p};\n`;
+      } else if (objItem instanceof PrimitiveArrayFullFragment) {
+        const o = objItem;
+        str += `data.${o.field.fieldName} = [\n`;
+        for (const value of o.values) {
+          const p = primitiveToStr(value);
+          str += `${p},\n`;
+        }
+        str += '];\n';
+      } else if (objItem instanceof UnknownItemFragment) {
+        str += `data.${objItem.field.fieldName} = null;\n`;
+      } else if (objItem instanceof UnknownArrayFragment) {
+        str += `data.${objItem.field.fieldName} = [];\n`;
+      } else {
+        throw new InvalidArgumentError(`objItem が不明: ${objItem.field.fieldName}`);
+      }
+    }
+    str += '  return data\n';
+    return str;
   }
 }
