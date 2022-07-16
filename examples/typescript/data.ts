@@ -40,43 +40,31 @@ export interface Base {
 }
 
 // データの識別子
-export type MyDataId =
-  | 'TEST01_ANDROID_1'
-  | 'TEST01_IOS_1'
-  | 'TEST01_HAIR_STYLE_1'
-  | 'TEST01_FRIENDS_1'
-  | 'TEST01_FRIENDS_2'
-  | 'TEST01_DEVICE_1'
-  | 'TEST01_BASE_1'
-  | 'TEST02_FRIENDS_2'
-  | 'TEST02_BASE_1'
-  | 'TEST03_BASE_1'
-  | 'TEST04_FRIENDS_3'
-  | 'TEST04_BASE_1'
-  | 'TEST05_DEVICE_1'
-  | 'TEST05_BASE_1'
-  | 'TEST06_BASE_1';
-// eslint-disable-next-line @typescript-eslint/no-namespace
-export namespace DATAID {
-  export const TEST01_ANDROID_1: MyDataId = 'TEST01_ANDROID_1';
-  export const TEST01_IOS_1: MyDataId = 'TEST01_IOS_1';
-  export const TEST01_HAIR_STYLE_1: MyDataId = 'TEST01_HAIR_STYLE_1';
-  export const TEST01_FRIENDS_1: MyDataId = 'TEST01_FRIENDS_1';
-  export const TEST01_FRIENDS_2: MyDataId = 'TEST01_FRIENDS_2';
-  export const TEST01_DEVICE_1: MyDataId = 'TEST01_DEVICE_1';
-  export const TEST01_BASE_1: MyDataId = 'TEST01_BASE_1';
-  export const TEST02_FRIENDS_2: MyDataId = 'TEST02_FRIENDS_2';
-  export const TEST02_BASE_1: MyDataId = 'TEST02_BASE_1';
-  export const TEST03_BASE_1: MyDataId = 'TEST03_BASE_1';
-  export const TEST04_FRIENDS_3: MyDataId = 'TEST04_FRIENDS_3';
-  export const TEST04_BASE_1: MyDataId = 'TEST04_BASE_1';
-  export const TEST05_DEVICE_1: MyDataId = 'TEST05_DEVICE_1';
-  export const TEST05_BASE_1: MyDataId = 'TEST05_BASE_1';
-  export const TEST06_BASE_1: MyDataId = 'TEST06_BASE_1';
-}
+export const DATAID = {
+  TEST01_ANDROID_1: 'TEST01_ANDROID_1',
+  TEST01_IOS_1: 'TEST01_IOS_1',
+  TEST01_HAIR_STYLE_1: 'TEST01_HAIR_STYLE_1',
+  TEST01_FRIENDS_1: 'TEST01_FRIENDS_1',
+  TEST01_FRIENDS_2: 'TEST01_FRIENDS_2',
+  TEST01_DEVICE_1: 'TEST01_DEVICE_1',
+  TEST01_BASE_1: 'TEST01_BASE_1',
+  TEST02_FRIENDS_2: 'TEST02_FRIENDS_2',
+  TEST02_BASE_1: 'TEST02_BASE_1',
+  TEST03_BASE_1: 'TEST03_BASE_1',
+  TEST04_FRIENDS_3: 'TEST04_FRIENDS_3',
+  TEST04_BASE_1: 'TEST04_BASE_1',
+  TEST05_DEVICE_1: 'TEST05_DEVICE_1',
+  TEST05_BASE_1: 'TEST05_BASE_1',
+  TEST06_BASE_1: 'TEST06_BASE_1',
+} as const;
+export type DATAID = typeof DATAID[keyof typeof DATAID];
 
 // データ登録
 export function registerData() {
+  registerGroup1();
+}
+
+export function registerGroup1() {
   const f = factory;
   f.register(DATAID.TEST01_ANDROID_1, () => {
     return {
@@ -137,12 +125,12 @@ export function registerData() {
     data.is_active = false;
     data.friends[1] = f.childNode(DATAID.TEST02_FRIENDS_2) as Friends;
     data.groups = [1, 2, 3, 4];
-    data.qualifications = [] as unknown[];
+    data.qualifications = [];
     return data;
   });
   f.register(DATAID.TEST03_BASE_1, () => {
     const data = f.inheritNode(DATAID.TEST02_BASE_1) as Base;
-    data.qualifications = [] as unknown[];
+    data.qualifications = [];
     return data;
   });
   f.register(DATAID.TEST04_FRIENDS_3, () => {
@@ -158,7 +146,7 @@ export function registerData() {
       f.childNode(DATAID.TEST01_FRIENDS_2) as Friends,
       f.childNode(DATAID.TEST04_FRIENDS_3) as Friends,
     ];
-    data.qualifications = [] as unknown[];
+    data.qualifications = [];
     return data;
   });
   f.register(DATAID.TEST05_DEVICE_1, () => {
