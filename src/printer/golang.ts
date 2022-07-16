@@ -232,7 +232,7 @@ export class GolangCodeConverter extends AbstractProgramCodeConverter {
         if (!o.dataItem) {
           str += `data.${o.field.fieldName} = nil\n`;
         } else {
-          str += `data.${o.field.fieldName} = f.ChildNode(${o.dataItem.dataId}).(${o.dataItem.typeName})\n`;
+          str += `data.${o.field.fieldName} = f.ChildNode(${o.dataItem.dataId}).(*${o.dataItem.typeName})\n`;
         }
       } else if (objItem instanceof ObjectArrayFragment) {
         const o = objItem;
