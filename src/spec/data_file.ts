@@ -14,6 +14,15 @@ export class DataSubType {
     return this._subType;
   }
 
+  /**
+   * SubTypeを最新化する
+   *
+   * json のデータは、すべてのプロパティを書かなくても、定義できる。
+   * このインスタンスでのプロパティ構成が、別のインスタンスではプロパティが増えていることもある。
+   * このメソッドは parser の処理過程で SubType が更新されたときに、呼び出される。
+   *
+   * @param subType
+   */
   updateCachedSubType(subType: SubType) {
     this._subType = subType;
   }

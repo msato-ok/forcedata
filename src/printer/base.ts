@@ -1,5 +1,5 @@
-import { JsonParseResult } from '../parser/parser';
+import { Segment } from '../parser/segmenter';
 
 export interface Printer {
-  print(parseResult: JsonParseResult, outputPath: string): void;
+  print(segments: Segment[], outputPath: string): void;
 }

@@ -1,7 +1,7 @@
 import { SubType, SubTypeName, SubTypeField, SystemType } from '../spec/sub_type';
-import { DataSubType, DataFile, DiffValue, DiffArrayAllValues, DiffArrayValue } from '../spec/data_file';
-import { InvalidArgumentError } from '../common/base';
-import { JsonParseResult } from '../parser/parser';
+import { DataSubType, DiffValue, DiffArrayAllValues, DiffArrayValue } from '../spec/data_file';
+import { Cache, InvalidArgumentError } from '../common/base';
+import { Segment } from '../parser/segmenter';
 import * as util from '../common/util';
 
 /*
@@ -138,7 +138,7 @@ export class ProgramCode {
 }
 
 export interface ProgramCodeConverter {
-  convert(parseResult: JsonParseResult): ProgramCode;
+  convert(segments: Segment[]): ProgramCode;
 }
 
 export abstract class AbstractProgramCodeConverter implements ProgramCodeConverter {
@@ -155,9 +155,13 @@ export abstract class AbstractProgramCodeConverter implements ProgramCodeConvert
     return new SubTypeFragment(subType.typeName.name, fields);
   }
 
+  convertDataId(dataName: string): string {
+    return util.pascalCase(dataName);
+  }
+
   convertObjectItemId(dataName: string, subTypeName: SubTypeName): ObjectItemId {
     const objItemId = {
-      dataId: dataName,
+      dataId: this.convertDataId(dataName),
       typeName: subTypeName.name,
     } as ObjectItemId;
     this.uniqObjectDataId.set(objItemId.dataId, objItemId);
@@ -301,24 +305,40 @@ export abstract class AbstractProgramCodeConverter implements ProgramCodeConvert
     return new RegistrationGroupFragment(this.registrationGroupNo++, factoryRegistrationFlagments);
   }
 
-  convertTestDataCode(dataFile: DataFile): TestDataFragment {
-    return new TestDataFragment(dataFile.baseFile, util.pascalCase(dataFile.rootDataSubType.dataName));
+  convertTestDataCode(segment: Segment): TestDataFragment[] {
+    const dataList = [];
+    for (const dst of segment.dataSubTypes) {
+      const df = segment.getDataFile(dst);
+      if (df) {
+        const tdf = new TestDataFragment(df.baseFile, this.convertDataId(dst.dataName));
+        dataList.push(tdf);
+      }
+    }
+    return dataList;
   }
 
-  convert(parseResult: JsonParseResult): ProgramCode {
+  private uniqSubTypes(segments: Segment[]): SubType[] {
+    const cache: Cache<SubType> = new Cache<SubType>();
+    for (const segment of segments) {
+      cache.addAll(segment.uniqSubTypes());
+    }
+    return cache.values();
+  }
+
+  convert(segments: Segment[]): ProgramCode {
     const subTypeDefinitionFragments = [];
-    for (const subType of parseResult.subTypes) {
+    for (const subType of this.uniqSubTypes(segments)) {
       subTypeDefinitionFragments.push(this.convertSubTypeFragment(subType));
     }
     // 現時点では、グループは１つだけ
     const registrationGroupFragments = [];
-    registrationGroupFragments.push(
-      this.convertRegistrationGroupFragment(parseResult.dataSubTypesSortedByRegistration)
-    );
+    for (const segment of segments) {
+      registrationGroupFragments.push(this.convertRegistrationGroupFragment(segment.sortByRegistration()));
+    }
     const dataIdConstantFragments = Array.from(this.uniqObjectDataId.keys());
-    const testDataFragment = [];
-    for (const dataFile of parseResult.dataFiles) {
-      testDataFragment.push(this.convertTestDataCode(dataFile));
+    let testDataFragment: TestDataFragment[] = [];
+    for (const segment of segments) {
+      testDataFragment = testDataFragment.concat(this.convertTestDataCode(segment));
     }
     return new ProgramCode(
       subTypeDefinitionFragments,

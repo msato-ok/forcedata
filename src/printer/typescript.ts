@@ -1,14 +1,12 @@
 import fs from 'fs';
 import ejs from 'ejs';
 import { execSync } from 'child_process';
-import { SubTypeName, SubTypeField, SystemType } from '../spec/sub_type';
-import { DataFile } from '../spec/data_file';
+import { SubTypeField, SystemType } from '../spec/sub_type';
 import { DataSubType } from '../spec/data_file';
 import { InvalidArgumentError } from '../common/base';
-import { JsonParseResult } from '../parser/parser';
+import { Segment } from '../parser/segmenter';
 import { Printer } from './base';
 import {
-  ObjectItemId,
   ProgramCodeConverter,
   SubTypeFieldFragment,
   FactoryRegistrationFlagment,
@@ -21,7 +19,6 @@ import {
   PrimitiveArrayFullFragment,
   UnknownItemFragment,
   UnknownArrayFragment,
-  TestDataFragment,
   AbstractProgramCodeConverter,
 } from './converter';
 import * as util from '../common/util';
@@ -37,8 +34,8 @@ export class TsPrinter implements Printer {
     }
   }
 
-  print(parseResult: JsonParseResult, outputPath: string) {
-    const pc = this._converter.convert(parseResult);
+  print(segments: Segment[], outputPath: string) {
+    const pc = this._converter.convert(segments);
     const data = {
       pc: pc,
     };
@@ -142,9 +139,8 @@ export class TsCodeConverter extends AbstractProgramCodeConverter {
     return new SubTypeFieldFragment(field.fieldName, typeName, typeNameSingle, field.fieldName);
   }
 
-  convertObjectItemId(dataName: string, subTypeName: SubTypeName): ObjectItemId {
-    const dataId = util.snakeCase(dataName).toUpperCase();
-    return super.convertObjectItemId(dataId, subTypeName);
+  convertDataId(dataName: string): string {
+    return util.snakeCase(dataName).toUpperCase();
   }
 
   convertFactoryRegistration(dataSubType: DataSubType): FactoryRegistrationFlagment {
@@ -153,7 +149,7 @@ export class TsCodeConverter extends AbstractProgramCodeConverter {
     return new TsRegistrationFlagment(s, renderText);
   }
 
-  renderFactoryRegistrationFlagment(fr: FactoryRegistrationFlagment): string {
+  private renderFactoryRegistrationFlagment(fr: FactoryRegistrationFlagment): string {
     if (fr instanceof FactoryRegistrationInheritFlagment) {
       return this.renderInheritRegisterString(fr);
     } else {
@@ -161,14 +157,7 @@ export class TsCodeConverter extends AbstractProgramCodeConverter {
     }
   }
 
-  convertTestDataCode(dataFile: DataFile): TestDataFragment {
-    return {
-      fileName: dataFile.baseFile,
-      rootDataId: util.snakeCase(dataFile.rootDataSubType.dataName).toUpperCase(),
-    };
-  }
-
-  renderNewRegisterString(fr: FactoryRegistrationFlagment): string {
+  private renderNewRegisterString(fr: FactoryRegistrationFlagment): string {
     let str = 'return {\n';
     for (const objItem of fr.dataItems) {
       if (objItem instanceof ObjectItemFragment) {
@@ -225,7 +214,7 @@ export class TsCodeConverter extends AbstractProgramCodeConverter {
     return str;
   }
 
-  renderInheritRegisterString(fr: FactoryRegistrationInheritFlagment): string {
+  private renderInheritRegisterString(fr: FactoryRegistrationInheritFlagment): string {
     let str = `const data = f.inheritNode(DATAID.${fr.inheritObjectId.dataId}) as ${fr.objectId.typeName};\n`;
     for (const objItem of fr.dataItems) {
       if (objItem instanceof ObjectItemFragment) {
