@@ -1,28 +1,5 @@
 import { factory } from './factory';
 
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
-export interface HairStyle {}
-
-export interface Friends {
-  id: number;
-  name: string;
-}
-
-export interface Android {
-  manufacturer: string;
-  model: string;
-}
-
-export interface Ios {
-  manufacturer: string;
-  model: string;
-}
-
-export interface Device {
-  android: Android;
-  ios: Ios;
-}
-
 export interface Base {
   id: string;
   is_active: boolean;
@@ -37,6 +14,29 @@ export interface Base {
   rooms: string[];
   device: Device;
   qualifications: unknown[];
+}
+
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+export interface HairStyle {}
+
+export interface Friends {
+  id: number;
+  name: string;
+}
+
+export interface Device {
+  android: Android;
+  ios: Ios;
+}
+
+export interface Android {
+  manufacturer: string;
+  model: string;
+}
+
+export interface Ios {
+  manufacturer: string;
+  model: string;
 }
 
 // データの識別子

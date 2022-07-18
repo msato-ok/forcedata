@@ -31,6 +31,27 @@ export class JsonParseResult {
     this._dataFiles.add(dataFile);
   }
 
+  /**
+   * DataSubType が属する DataFile を取得する
+   *
+   * dst が json ファイル内でのルートモデルである場合に、それが属する DataFile を返す
+   * ルートモデルではない場合 null を返す
+   *
+   * @param dsts
+   * @returns
+   */
+  getDataFilesByDataSubType(dsts: DataSubType[]): DataFile[] {
+    const dfList = [];
+    for (const df of this._dataFiles.values()) {
+      for (const dst of dsts) {
+        if (df.rootDataSubType == dst) {
+          dfList.push(df);
+        }
+      }
+    }
+    return dfList;
+  }
+
   getSubType(typeName: SubTypeName): SubType {
     const s = this._subTypes.get(typeName.name);
     if (!s) {
@@ -60,7 +81,7 @@ export class JsonParseResult {
   /**
    * ユニークなデータを取得する
    *
-   * オブジェクトのデータは中身が同じものは除外して、ユニークなものだけを抽出する。
+   * オブジェクトのデータは、中身が同じものを除外してユニークなものだけを抽出する。
    * similar があり、且つ、差分が 0 のデータは、中身が同じであることを意味する。
    */
   get uniqueDataSubTypes(): DataSubType[] {
@@ -72,65 +93,6 @@ export class JsonParseResult {
         }
         list.push(dst);
       }
-    }
-    return list;
-  }
-
-  /**
-   * 登録順が並べ替えられたユニークなデータを取得する
-   *
-   * データが関連している場合に、先に登録されていることが前提となるような、
-   * データ構造がある場合、その登録順の並べ替えをする
-   */
-  get dataSubTypesSortedByRegistration(): DataSubType[] {
-    const list: DataSubType[] = [];
-    const listDict = new Map<string, DataSubType>();
-
-    const walkField = (dst: DataSubType) => {
-      const moving: DataSubType[] = [];
-      for (const field of dst.subType.fields) {
-        if (field.isPrimitiveType || field.systemType == SystemType.Unknown) {
-          continue;
-        }
-        if (field.systemType == SystemType.Object) {
-          let childDstArry: DataSubType[] = [];
-          if (dst.hasValue(field.fieldName)) {
-            if (field.isArray) {
-              childDstArry = dst.getArrayDataSubType(field.fieldName);
-            } else {
-              const childDst = dst.getDataSubType(field.fieldName);
-              childDstArry.push(childDst);
-            }
-          }
-          for (let i = 0; i < childDstArry.length; i++) {
-            const childDst = childDstArry[i];
-            if (childDst.similar != null && childDst.similar.diffValues.length == 0) {
-              continue;
-            }
-            moving.push(childDst);
-            walkField(childDst);
-          }
-        } else {
-          throw new InvalidArgumentError(`unknown systemType: ${field.systemType}`);
-        }
-      }
-      for (const m of moving) {
-        if (!listDict.has(m.dataName)) {
-          listDict.set(m.dataName, m);
-          list.push(m);
-        }
-      }
-    };
-
-    for (const dst of this.uniqueDataSubTypes) {
-      if (listDict.has(dst.dataName)) {
-        continue;
-      }
-      walkField(dst);
-      list.push(dst);
-    }
-    if (this.uniqueDataSubTypes.length != list.length) {
-      throw new InvalidArgumentError(`dataSubTypes=${this.uniqueDataSubTypes.length} != ${list.length}}`);
     }
     return list;
   }
@@ -150,7 +112,7 @@ export class JsonParser {
     this.result.putDataFile(dataFile);
   }
 
-  parse() {
+  parse(): JsonParseResult {
     for (const dataFile of this.result.dataFiles) {
       this.parseRawData(dataFile, dataFile.rawData, ObjectPath.unique(''));
     }

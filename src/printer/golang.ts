@@ -1,13 +1,12 @@
 import fs from 'fs';
 import ejs from 'ejs';
 import { execSync } from 'child_process';
-import { SubTypeName, SubTypeField, SystemType } from '../spec/sub_type';
+import { SubTypeField, SystemType } from '../spec/sub_type';
 import { DataSubType } from '../spec/data_file';
 import { InvalidArgumentError } from '../common/base';
-import { JsonParseResult } from '../parser/parser';
+import { Segment } from '../parser/segmenter';
 import { Printer } from './base';
 import {
-  ObjectItemId,
   ProgramCodeConverter,
   SubTypeFieldFragment,
   FactoryRegistrationFlagment,
@@ -35,8 +34,8 @@ export class GolangPrinter implements Printer {
     }
   }
 
-  print(parseResult: JsonParseResult, outputPath: string) {
-    const pc = this._converter.convert(parseResult);
+  print(segments: Segment[], outputPath: string) {
+    const pc = this._converter.convert(segments);
     const data = {
       pc: pc,
       packageName: this.packageName,
@@ -148,18 +147,13 @@ export class GolangCodeConverter extends AbstractProgramCodeConverter {
     return new SubTypeFieldFragment(util.pascalCase(field.fieldName), typeName, typeNameSingle, field.fieldName);
   }
 
-  convertObjectItemId(dataName: string, subTypeName: SubTypeName): ObjectItemId {
-    const dataId = util.pascalCase(dataName);
-    return super.convertObjectItemId(dataId, subTypeName);
-  }
-
   convertFactoryRegistration(dataSubType: DataSubType): FactoryRegistrationFlagment {
     const s = super.convertFactoryRegistration(dataSubType);
     const renderText = this.renderFactoryRegistrationFlagment(s);
     return new GolangFactoryRegistrationFlagment(s, renderText);
   }
 
-  renderFactoryRegistrationFlagment(fr: FactoryRegistrationFlagment): string {
+  private renderFactoryRegistrationFlagment(fr: FactoryRegistrationFlagment): string {
     if (fr instanceof FactoryRegistrationInheritFlagment) {
       return this.renderInheritRegisterString(fr);
     } else {
@@ -167,7 +161,7 @@ export class GolangCodeConverter extends AbstractProgramCodeConverter {
     }
   }
 
-  renderNewRegisterString(fr: FactoryRegistrationFlagment): string {
+  private renderNewRegisterString(fr: FactoryRegistrationFlagment): string {
     let str = `return &${fr.objectId.typeName}{\n`;
     for (const objItem of fr.dataItems) {
       if (objItem instanceof ObjectItemFragment) {
@@ -224,7 +218,7 @@ export class GolangCodeConverter extends AbstractProgramCodeConverter {
     return str;
   }
 
-  renderInheritRegisterString(fr: FactoryRegistrationInheritFlagment): string {
+  private renderInheritRegisterString(fr: FactoryRegistrationInheritFlagment): string {
     let str = `data := f.InheritNode(${fr.inheritObjectId.dataId}).(*${fr.objectId.typeName})\n`;
     for (const objItem of fr.dataItems) {
       if (objItem instanceof ObjectItemFragment) {

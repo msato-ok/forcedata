@@ -1,5 +1,6 @@
 import glob from 'glob';
 import { JsonParser } from '../parser/parser';
+import { Segmenter } from '../parser/segmenter';
 import { IYmlDefinitions, load as loadYml } from '../spec/yml_type';
 import { Printer } from '../printer/base';
 
@@ -31,9 +32,15 @@ export abstract class AbstractPgCodeCommand extends AbstractCommandOption {
   protected rootDataName: string | null = null;
   protected typeDefinitions: IYmlDefinitions | null = null;
   protected parser: JsonParser;
+  protected segmenter: Segmenter;
   protected printer: Printer;
 
-  constructor(protected _option: IJsonToPgCodeCommandOpt, _parser: JsonParser | null = null, _printer: Printer) {
+  constructor(
+    protected _option: IJsonToPgCodeCommandOpt,
+    _parser: JsonParser | null = null,
+    _printer: Printer,
+    _segmenter: Segmenter | null = null
+  ) {
     super(_option);
     if (this._option.model) {
       this.rootDataName = this._option.model;
@@ -47,6 +54,11 @@ export abstract class AbstractPgCodeCommand extends AbstractCommandOption {
       this.parser = _parser;
     }
     this.printer = _printer;
+    if (_segmenter == null) {
+      this.segmenter = new Segmenter();
+    } else {
+      this.segmenter = _segmenter;
+    }
   }
 
   public execute(pattern: string): void {
@@ -56,6 +68,7 @@ export abstract class AbstractPgCodeCommand extends AbstractCommandOption {
       this.parser.addJson(file, this.rootDataName);
     }
     const parseResult = this.parser.parse();
-    this.printer.print(parseResult, this._option.output);
+    const segments = this.segmenter.segment(parseResult);
+    this.printer.print(segments, this._option.output);
   }
 }
