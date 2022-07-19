@@ -26,10 +26,9 @@ program
 program
   .command('json2go <pattern>')
   .description('generate golang source code from json')
-  .requiredOption('-o, --output <file>', 'output source file')
+  .requiredOption('-d, --dir <dir>', 'directory to output source code')
   .option('-t, --type <file>', 'type definition yaml')
   .option('-m, --model <model name>', 'root model name')
-  .option('-p, --package <package name>', 'package name')
   .option('-v, --verbose', 'verbose mode')
   .action((pattern: string, option: IJsonToPgCodeCommandOpt): void => {
     const command = new JsonToGoCommand(option);
@@ -39,10 +38,9 @@ program
 program
   .command('json2ts <pattern>')
   .description('generate typescript source code from json')
-  .requiredOption('-o, --output <file>', 'output source file')
+  .requiredOption('-d, --dir <dir>', 'directory to output source code')
   .option('-t, --type <file>', 'type definition yaml')
   .option('-m, --model <model name>', 'root model name')
-  .option('-p, --package <package name>', 'package name')
   .option('-v, --verbose', 'verbose mode')
   .action((pattern: string, option: IJsonToPgCodeCommandOpt): void => {
     const command = new JsonToTsCommand(option);

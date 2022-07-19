@@ -6,8 +6,8 @@ npx ts-node examples/typescript/force/main.ts -v -o ./examples/force-data.js
 
 */
 import { Command } from 'commander';
-import { registerData } from '../data';
-import { factory } from '../factory';
+import { registerData } from '../data/data';
+import { factory } from '../model/factory';
 import path from 'path';
 import fs from 'fs';
 

@@ -1,93 +1,82 @@
 var forceData = [
   {
-    "dataId": "Test01Friends2",
-    "inheritDataId": "",
+    "dataId": "TEST01_ANDROID_1",
     "properties": []
   },
   {
-    "dataId": "Test01Base1",
-    "inheritDataId": "",
+    "dataId": "TEST01_IOS_1",
+    "properties": []
+  },
+  {
+    "dataId": "TEST01_HAIR_STYLE_1",
+    "properties": []
+  },
+  {
+    "dataId": "TEST01_FRIENDS_1",
+    "properties": []
+  },
+  {
+    "dataId": "TEST01_FRIENDS_2",
+    "properties": []
+  },
+  {
+    "dataId": "TEST02_FRIENDS_2",
+    "inheritDataId": "TEST01_FRIENDS_2",
+    "properties": []
+  },
+  {
+    "dataId": "TEST04_FRIENDS_3",
+    "properties": []
+  },
+  {
+    "dataId": "TEST01_DEVICE_1",
     "properties": [
-      "Test01HairStyle1",
-      "Test01Friends1",
-      "Test01Friends2",
-      "Test01Device1"
+      "TEST01_ANDROID_1",
+      "TEST01_IOS_1"
     ]
   },
   {
-    "dataId": "Test05Base1",
-    "inheritDataId": "",
+    "dataId": "TEST05_DEVICE_1",
+    "properties": []
+  },
+  {
+    "dataId": "TEST01_BASE_1",
     "properties": [
-      "Test05Device1"
+      "TEST01_HAIR_STYLE_1",
+      "TEST01_FRIENDS_1",
+      "TEST01_FRIENDS_2",
+      "TEST01_DEVICE_1"
     ]
   },
   {
-    "dataId": "Test02Base1",
-    "inheritDataId": "Test01Base1",
+    "dataId": "TEST02_BASE_1",
+    "inheritDataId": "TEST01_BASE_1",
     "properties": [
-      "Test02Friends2"
+      "TEST02_FRIENDS_2"
     ]
   },
   {
-    "dataId": "Test01Ios1",
-    "inheritDataId": "",
+    "dataId": "TEST03_BASE_1",
+    "inheritDataId": "TEST02_BASE_1",
     "properties": []
   },
   {
-    "dataId": "Test01HairStyle1",
-    "inheritDataId": "",
-    "properties": []
-  },
-  {
-    "dataId": "Test01Friends1",
-    "inheritDataId": "",
-    "properties": []
-  },
-  {
-    "dataId": "Test04Friends3",
-    "inheritDataId": "",
-    "properties": []
-  },
-  {
-    "dataId": "Test01Device1",
-    "inheritDataId": "",
+    "dataId": "TEST04_BASE_1",
+    "inheritDataId": "TEST01_BASE_1",
     "properties": [
-      "Test01Android1",
-      "Test01Ios1"
+      "TEST01_FRIENDS_1",
+      "TEST01_FRIENDS_2",
+      "TEST04_FRIENDS_3"
     ]
   },
   {
-    "dataId": "Test05Device1",
-    "inheritDataId": "",
-    "properties": []
-  },
-  {
-    "dataId": "Test02Friends2",
-    "inheritDataId": "Test01Friends2",
-    "properties": []
-  },
-  {
-    "dataId": "Test03Base1",
-    "inheritDataId": "Test02Base1",
-    "properties": []
-  },
-  {
-    "dataId": "Test01Android1",
-    "inheritDataId": "",
-    "properties": []
-  },
-  {
-    "dataId": "Test04Base1",
-    "inheritDataId": "Test01Base1",
+    "dataId": "TEST05_BASE_1",
     "properties": [
-      "Test01Friends1",
-      "Test01Friends2",
-      "Test04Friends3"
+      "TEST05_DEVICE_1"
     ]
   },
   {
-    "dataId": "Test06Base1",
-    "inheritDataId": "",
+    "dataId": "TEST06_BASE_1",
     "properties": []
   }
 ];

@@ -9,10 +9,9 @@ export interface ICommandOption {
 }
 
 export interface IJsonToPgCodeCommandOpt extends ICommandOption {
-  output: string;
+  dir: string;
   type: string;
   model: string;
-  package: string;
 }
 
 export interface JsonCommand {
@@ -69,6 +68,6 @@ export abstract class AbstractPgCodeCommand extends AbstractCommandOption {
     }
     const parseResult = this.parser.parse();
     const segments = this.segmenter.segment(parseResult);
-    this.printer.print(segments, this._option.output);
+    this.printer.print(segments, this._option.dir);
   }
 }
