@@ -1,4 +1,6 @@
-package golang
+// +build test
+
+package model
 
 import (
 	"fmt"

@@ -6,8 +6,8 @@ npx ts-node examples/typescript/makejson/main.ts -v -o ./examples/json
 
 */
 import { Command } from 'commander';
-import { registerData, TestData } from '../data';
-import { factory } from '../factory';
+import { registerData, TestData } from '../data/data';
+import { factory } from '../model/factory';
 import path from 'path';
 import fs from 'fs';
 

@@ -13,7 +13,8 @@ package main
 
 import (
 	"encoding/json"
-	"forcedata/examples/golang"
+	"forcedata/examples/golang/data"
+	"forcedata/examples/golang/model"
 
 	"flag"
 	"fmt"
@@ -47,8 +48,8 @@ func validateArgs() error {
 }
 
 func execute() error {
-	golang.RegisterData()
-	bdata, _ := json.MarshalIndent(golang.Factory.NodeList(), "", "  ")
+	data.RegisterData()
+	bdata, _ := json.MarshalIndent(model.Factory.NodeList(), "", "  ")
 	text := fmt.Sprintf("var forceData = %s;\n", string(bdata))
 	err := ioutil.WriteFile(out, []byte(text), 0644)
 	if err != nil {

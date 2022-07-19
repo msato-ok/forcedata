@@ -22,7 +22,7 @@
 
 * 共通性抽出
     ```bash
-    npx ts-node src/cli.ts json2ts -v -o ./examples/typescript/data.ts "./examples/json/*.json"
+    npx ts-node src/cli.ts json2ts -v -d ./examples/typescript "./examples/json/*.json"
     ```
 * 力指向グラフ用のデータに変換  
     可視化用の html は、`./examples/force.html` に作成してあって、 `force-data.js` を読み込むようになっているので、出力ファイルは `./examples/force-data.js` にしてください。
@@ -47,10 +47,10 @@
 
 ```bash
 # typescript
-npx ts-node src/cli.ts json2ts -v -o ./examples/typescript/data.ts "./examples/json/*.json"
+npx ts-node src/cli.ts json2ts -v -d ./examples/typescript "./examples/json/*.json"
 
 # golang
-npx ts-node src/cli.ts json2go -v -o ./examples/golang/data.go "./examples/json/*.json"
+npx ts-node src/cli.ts json2go -v -d ./examples/golang "./examples/json/*.json"
 ```
 
 ※ 実際にサンプルデータで作成されたソースコードも、コミットされています。
@@ -71,10 +71,10 @@ json は型定義がないので、コード化されたもの見たときに、
 * 修正された出力された型定義 data.yml を使って、コード生成する
     ```bash
     # typescript
-    npx ts-node src/cli.ts json2ts -v -t ./examples/data.yml -o ./examples/typescript/data.ts "./examples/json/*.json"
+    npx ts-node src/cli.ts json2ts -v -t ./examples/data.yml -o ./examples/typescript "./examples/json/*.json"
 
     # golang
-    npx ts-node src/cli.ts json2go -v -t ./examples/data.yml -o ./examples/golang/data.go "./examples/json/*.json"
+    npx ts-node src/cli.ts json2go -v -t ./examples/data.yml -o ./examples/golang "./examples/json/*.json"
     ```
 
 ### 力指向グラフ用データ出力

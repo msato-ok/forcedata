@@ -5,7 +5,6 @@ import glob from 'glob';
 
 export interface IJsonToTypeCommandOption extends ICommandOption {
   output: string;
-  type: string;
   model: string;
 }
 

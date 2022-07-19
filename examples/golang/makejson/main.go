@@ -12,7 +12,8 @@ go run -tags=test examples/golang/makejson/main.go -outdir examples/json
 package main
 
 import (
-	"forcedata/examples/golang"
+	"forcedata/examples/golang/data"
+	"forcedata/examples/golang/model"
 
 	"encoding/json"
 	"flag"
@@ -54,10 +55,10 @@ func execute() error {
 	// 		return err
 	// 	}
 	// }
-	golang.RegisterData()
-	for jsonFile, dataID := range golang.TestData {
+	data.RegisterData()
+	for jsonFile, dataID := range data.TestData {
 		outputPath := filepath.Join(outdir, jsonFile)
-		data := golang.Factory.Get(dataID)
+		data := model.Factory.Get(dataID)
 		bdata, err := json.MarshalIndent(data, "", "  ")
 		if err != nil {
 			return err

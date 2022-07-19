@@ -1,4 +1,4 @@
-import { SubType, SubTypeName, SubTypeField, SystemType } from '../spec/sub_type';
+import { SubType, SubTypeField, SystemType } from '../spec/sub_type';
 import { DataSubType, DiffValue, DiffArrayAllValues, DiffArrayValue } from '../spec/data_file';
 import { Cache, InvalidArgumentError } from '../common/base';
 import { Segment } from '../parser/segmenter';
@@ -98,7 +98,7 @@ export class UnknownArrayFragment extends DataItemFragment {
   }
 }
 
-export class FactoryRegistrationFlagment {
+export class FactoryRegistrationFragment {
   constructor(
     readonly objectId: ObjectItemId,
     readonly subType: SubTypeFragment,
@@ -106,7 +106,7 @@ export class FactoryRegistrationFlagment {
   ) {}
 }
 
-export class FactoryRegistrationInheritFlagment extends FactoryRegistrationFlagment {
+export class FactoryRegistrationInheritFragment extends FactoryRegistrationFragment {
   constructor(
     readonly objectId: ObjectItemId,
     readonly inheritObjectId: ObjectItemId,
@@ -117,23 +117,69 @@ export class FactoryRegistrationInheritFlagment extends FactoryRegistrationFlagm
   }
 }
 
+export class FragmentsGroupBySubType {
+  constructor(
+    readonly subTypeName: string,
+    readonly factoryRegistrationFragments: FactoryRegistrationFragment[],
+    readonly dataIdConstantFragments: string[]
+  ) {}
+}
+
 export class RegistrationGroupFragment {
-  constructor(readonly groupNo: number, readonly factoryRegistrationFlagments: FactoryRegistrationFlagment[]) {}
+  private dataIdsGroupBySubType = new Map<string, Set<string>>();
+  private fragmentsGroupBySubType = new Map<string, FactoryRegistrationFragment[]>();
+
+  constructor(readonly groupName: string, readonly factoryRegistrationFragments: FactoryRegistrationFragment[]) {
+    for (const fragment of factoryRegistrationFragments) {
+      let fragments = this.fragmentsGroupBySubType.get(fragment.subType.subTypeName);
+      if (!fragments) {
+        fragments = [];
+        this.fragmentsGroupBySubType.set(fragment.subType.subTypeName, fragments);
+      }
+      fragments.push(fragment);
+      let dataIds = this.dataIdsGroupBySubType.get(fragment.subType.subTypeName);
+      if (!dataIds) {
+        dataIds = new Set<string>();
+        this.dataIdsGroupBySubType.set(fragment.subType.subTypeName, dataIds);
+      }
+      dataIds.add(fragment.objectId.dataId);
+    }
+  }
+
+  getFragmentsGroupBySubType(subTypeName: string): FactoryRegistrationFragment[] {
+    const fragments = this.fragmentsGroupBySubType.get(subTypeName);
+    if (!fragments) {
+      throw new InvalidArgumentError();
+    }
+    return fragments;
+  }
+
+  getDataIdsGroupBySubType(subTypeName: string): string[] {
+    const dataIds = this.dataIdsGroupBySubType.get(subTypeName);
+    if (!dataIds) {
+      throw new InvalidArgumentError();
+    }
+    return Array.from(dataIds);
+  }
+
+  get subTypeNames(): string[] {
+    return Array.from(this.dataIdsGroupBySubType.keys());
+  }
 }
 
 /**
  * json ファイル名とファイルのルートオブジェクトのデータIDの組み合わせ
  */
 export class TestDataFragment {
-  constructor(readonly fileName: string, readonly rootDataId: string) {}
+  constructor(readonly fileName: string, readonly segmentName: string, readonly rootDataId: string) {}
 }
 
 export class ProgramCode {
   constructor(
     readonly subTypeDefinitionFragments: SubTypeFragment[],
-    readonly dataIdConstantFragments: string[],
     readonly registrationGroupFragments: RegistrationGroupFragment[],
-    readonly testDataFragment: TestDataFragment[]
+    readonly testDataFragment: TestDataFragment[],
+    readonly dataIdConstantFragments: string[]
   ) {}
 }
 
@@ -143,7 +189,6 @@ export interface ProgramCodeConverter {
 
 export abstract class AbstractProgramCodeConverter implements ProgramCodeConverter {
   private uniqObjectDataId: Map<string, ObjectItemId> = new Map<string, ObjectItemId>();
-  private registrationGroupNo = 1;
 
   abstract convertSubTypeFieldFragment(field: SubTypeField): SubTypeFieldFragment;
 
@@ -159,10 +204,10 @@ export abstract class AbstractProgramCodeConverter implements ProgramCodeConvert
     return util.pascalCase(dataName);
   }
 
-  convertObjectItemId(dataName: string, subTypeName: SubTypeName): ObjectItemId {
+  convertObjectItemId(dataName: string, subType: SubType): ObjectItemId {
     const objItemId = {
       dataId: this.convertDataId(dataName),
-      typeName: subTypeName.name,
+      typeName: subType.typeName.name,
     } as ObjectItemId;
     this.uniqObjectDataId.set(objItemId.dataId, objItemId);
     return objItemId;
@@ -175,13 +220,13 @@ export abstract class AbstractProgramCodeConverter implements ProgramCodeConvert
         const dsTypes = dataSubType.getArrayDataSubType(subTypeField.fieldName);
         const objItemIds = [];
         for (const dst of dsTypes) {
-          const objItemId = this.convertObjectItemId(dst.similarAncesters.dataName, dst.subType.typeName);
+          const objItemId = this.convertObjectItemId(dst.similarAncesters.dataName, dst.subType);
           objItemIds.push(objItemId);
         }
         return new ObjectArrayFullFragment(fieldFr, objItemIds);
       } else {
         const dst = dataSubType.getDataSubType(subTypeField.fieldName);
-        const objItemId = this.convertObjectItemId(dst.similarAncesters.dataName, dst.subType.typeName);
+        const objItemId = this.convertObjectItemId(dst.similarAncesters.dataName, dst.subType);
         return new ObjectItemFragment(fieldFr, objItemId);
       }
     } else if (subTypeField.systemType == SystemType.Unknown) {
@@ -215,10 +260,7 @@ export abstract class AbstractProgramCodeConverter implements ProgramCodeConvert
               if (childDst == null) {
                 objItemIds.push(null);
               } else {
-                const objItemId = this.convertObjectItemId(
-                  childDst.similarAncesters.dataName,
-                  childDst.subType.typeName
-                );
+                const objItemId = this.convertObjectItemId(childDst.similarAncesters.dataName, childDst.subType);
                 objItemIds.push(objItemId);
               }
             }
@@ -229,7 +271,7 @@ export abstract class AbstractProgramCodeConverter implements ProgramCodeConvert
           const childDst = diffValue.value as DataSubType;
           let objItemId = null;
           if (childDst != null) {
-            objItemId = this.convertObjectItemId(childDst.similarAncesters.dataName, childDst.subType.typeName);
+            objItemId = this.convertObjectItemId(childDst.similarAncesters.dataName, childDst.subType);
           }
           return new ObjectArrayFragment(pcField, diffArrVal.arrIindex, objItemId);
         } else {
@@ -239,7 +281,7 @@ export abstract class AbstractProgramCodeConverter implements ProgramCodeConvert
         const childDst = diffValue.value as DataSubType;
         let objItemId: ObjectItemId | null = null;
         if (childDst != null) {
-          objItemId = this.convertObjectItemId(childDst.similarAncesters.dataName, childDst.subType.typeName);
+          objItemId = this.convertObjectItemId(childDst.similarAncesters.dataName, childDst.subType);
         }
         return new ObjectItemFragment(pcField, objItemId);
       }
@@ -266,7 +308,7 @@ export abstract class AbstractProgramCodeConverter implements ProgramCodeConvert
     }
   }
 
-  convertFactoryRegistration(dataSubType: DataSubType): FactoryRegistrationFlagment {
+  convertFactoryRegistration(dataSubType: DataSubType): FactoryRegistrationFragment {
     if (dataSubType.similar) {
       const dataItems = [];
       for (const diffValue of dataSubType.similar.diffValues) {
@@ -275,9 +317,9 @@ export abstract class AbstractProgramCodeConverter implements ProgramCodeConvert
       if (!dataSubType.similar) {
         throw new InvalidArgumentError();
       }
-      return new FactoryRegistrationInheritFlagment(
-        this.convertObjectItemId(dataSubType.dataName, dataSubType.subType.typeName),
-        this.convertObjectItemId(dataSubType.inheritDataSubType.dataName, dataSubType.subType.typeName),
+      return new FactoryRegistrationInheritFragment(
+        this.convertObjectItemId(dataSubType.dataName, dataSubType.subType),
+        this.convertObjectItemId(dataSubType.inheritDataSubType.dataName, dataSubType.subType),
         this.convertSubTypeFragment(dataSubType.subType),
         dataItems
       );
@@ -289,29 +331,33 @@ export abstract class AbstractProgramCodeConverter implements ProgramCodeConvert
         }
         dataItems.push(this.convertDataItemFragment(field, dataSubType));
       }
-      return new FactoryRegistrationFlagment(
-        this.convertObjectItemId(dataSubType.dataName, dataSubType.subType.typeName),
+      return new FactoryRegistrationFragment(
+        this.convertObjectItemId(dataSubType.dataName, dataSubType.subType),
         this.convertSubTypeFragment(dataSubType.subType),
         dataItems
       );
     }
   }
 
-  convertRegistrationGroupFragment(dataSubTypes: DataSubType[]): RegistrationGroupFragment {
-    const factoryRegistrationFlagments = [];
+  convertRegistrationGroupFragment(segment: Segment): RegistrationGroupFragment {
+    const dataSubTypes = segment.sortByRegistration();
+    const factoryRegistrationFragments = [];
     for (const dst of dataSubTypes) {
-      factoryRegistrationFlagments.push(this.convertFactoryRegistration(dst));
+      const fragment = this.convertFactoryRegistration(dst);
+      factoryRegistrationFragments.push(fragment);
     }
-    return new RegistrationGroupFragment(this.registrationGroupNo++, factoryRegistrationFlagments);
+    return new RegistrationGroupFragment(segment.name, factoryRegistrationFragments);
   }
 
-  convertTestDataCode(segment: Segment): TestDataFragment[] {
+  convertTestDataCode(segments: Segment[]): TestDataFragment[] {
     const dataList = [];
-    for (const dst of segment.dataSubTypes) {
-      const df = segment.getDataFile(dst);
-      if (df) {
-        const tdf = new TestDataFragment(df.baseFile, this.convertDataId(dst.dataName));
-        dataList.push(tdf);
+    for (const segment of segments) {
+      for (const dst of segment.dataSubTypes) {
+        const df = segment.getDataFile(dst);
+        if (df) {
+          const tdf = new TestDataFragment(df.baseFile, segment.name, this.convertDataId(dst.dataName));
+          dataList.push(tdf);
+        }
       }
     }
     return dataList;
@@ -332,19 +378,23 @@ export abstract class AbstractProgramCodeConverter implements ProgramCodeConvert
     }
     // 現時点では、グループは１つだけ
     const registrationGroupFragments = [];
+    const dataIds = new Set<string>();
     for (const segment of segments) {
-      registrationGroupFragments.push(this.convertRegistrationGroupFragment(segment.sortByRegistration()));
+      const group = this.convertRegistrationGroupFragment(segment);
+      registrationGroupFragments.push(group);
+      for (const frf of group.factoryRegistrationFragments) {
+        dataIds.add(frf.objectId.dataId);
+      }
     }
-    const dataIdConstantFragments = Array.from(this.uniqObjectDataId.keys());
-    let testDataFragment: TestDataFragment[] = [];
-    for (const segment of segments) {
-      testDataFragment = testDataFragment.concat(this.convertTestDataCode(segment));
-    }
+    const testDataFragment = this.convertTestDataCode(segments);
+    // for (const segment of segments) {
+    //   testDataFragment = testDataFragment.concat();
+    // }
     return new ProgramCode(
       subTypeDefinitionFragments,
-      dataIdConstantFragments,
       registrationGroupFragments,
-      testDataFragment
+      testDataFragment,
+      Array.from(dataIds)
     );
   }
 }

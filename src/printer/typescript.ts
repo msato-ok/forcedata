@@ -7,10 +7,11 @@ import { InvalidArgumentError } from '../common/base';
 import { Segment } from '../parser/segmenter';
 import { Printer } from './base';
 import {
+  ProgramCode,
   ProgramCodeConverter,
   SubTypeFieldFragment,
-  FactoryRegistrationFlagment,
-  FactoryRegistrationInheritFlagment,
+  FactoryRegistrationFragment,
+  FactoryRegistrationInheritFragment,
   ObjectItemFragment,
   ObjectArrayFragment,
   ObjectArrayFullFragment,
@@ -22,11 +23,12 @@ import {
   AbstractProgramCodeConverter,
 } from './converter';
 import * as util from '../common/util';
+import path from 'path';
 
 export class TsPrinter implements Printer {
   private _converter: ProgramCodeConverter;
 
-  constructor(private packageName: string, readonly converter: ProgramCodeConverter | null = null) {
+  constructor(readonly converter: ProgramCodeConverter | null = null) {
     if (converter) {
       this._converter = converter;
     } else {
@@ -34,14 +36,129 @@ export class TsPrinter implements Printer {
     }
   }
 
-  print(segments: Segment[], outputPath: string) {
+  print(segments: Segment[], outputDir: string) {
     const pc = this._converter.convert(segments);
+    this.printFactory(outputDir);
+    this.printModel(pc, outputDir);
+    this.printDataId(pc, outputDir);
+    for (const rgf of pc.registrationGroupFragments) {
+      for (const subTypeName of rgf.subTypeNames) {
+        const fragments = rgf.getFragmentsGroupBySubType(subTypeName);
+        this.printFragmentsGroupBySubType(subTypeName, fragments, outputDir, rgf.groupName);
+      }
+    }
+    this.printData(pc, outputDir);
+  }
+
+  private printFragmentsGroupBySubType(
+    subTypeName: string,
+    fragments: FactoryRegistrationFragment[],
+    outputDir: string,
+    groupName: string
+  ) {
+    const fn = util.snakeCase(subTypeName);
+    const groupPath = util.snakeCase(groupName);
+    const dataDir = path.join(outputDir, 'data', groupPath);
+    const outputPath = path.join(dataDir, `${fn}.ts`);
+    const impSubTypes = new Set<string>();
+    impSubTypes.add(subTypeName);
+    for (const fragment of fragments) {
+      for (const f of fragment.subType.fields) {
+        const tsField = f as TsSubTypeFieldFragment;
+        if (tsField.isObject) {
+          impSubTypes.add(f.typeNameSingle);
+        }
+      }
+    }
+    const data = {
+      impSubTypes: Array.from(impSubTypes),
+      subTypeName: subTypeName,
+      fragments: fragments,
+      groupTitle: util.pascalCase(groupName),
+    };
+    const template = `
+import { factory } from '../../model/factory';
+import { <%= impSubTypes.join(', ') %> } from '../../model/model';
+import { DATAID } from '../dataid';
+
+export function register<%= groupTitle %><%= subTypeName %>() {
+  const f = factory;
+  <%_ fragments.forEach((fragment) => { _%>
+    f.register(DATAID.<%= fragment.objectId.dataId %>, () => {
+      <%- fragment.text _%>
+    });
+  <%_ }); _%>
+}
+`;
+    const text = ejs.render(template, data, {});
+    this.write(outputPath, text);
+  }
+
+  private printDataId(pc: ProgramCode, dir: string) {
     const data = {
       pc: pc,
     };
+    const outputPath = path.join(dir, 'data/dataid.ts');
     const template = `
-import { factory } from './factory';
+// データの識別子
+export const DATAID = {
+  <%_ pc.dataIdConstantFragments.forEach((dataId) => { _%>
+    <%= dataId %>: '<%= dataId %>',
+  <%_ }); _%>
+} as const;
+export type DATAID = typeof DATAID[keyof typeof DATAID];
+`;
+    const text = ejs.render(template, data, {});
+    this.write(outputPath, text);
+  }
 
+  private printData(pc: ProgramCode, dir: string) {
+    const funcList = [];
+    for (const group of pc.registrationGroupFragments) {
+      const groupName = util.pascalCase(group.groupName);
+      const groupNamePath = util.snakeCase(group.groupName);
+      for (const subTypeName of group.subTypeNames) {
+        const subTypeNamePath = util.snakeCase(subTypeName);
+        funcList.push({
+          funcName: `register${groupName}${subTypeName}`,
+          impPath: `./${groupNamePath}/${subTypeNamePath}`,
+        });
+      }
+    }
+    const data = {
+      pc: pc,
+      funcList: funcList,
+    };
+    const outputPath = path.join(dir, 'data/data.ts');
+    const template = `
+<%_ funcList.forEach((func) => { _%>
+  import { <%= func.funcName %> } from '<%= func.impPath %>';
+<%_ }); _%>
+import { DATAID } from './dataid';
+
+// データ登録
+export function registerData() {
+  <%_ funcList.forEach((func) => { _%>
+    <%= func.funcName %>();
+  <%_ }); _%>
+}
+
+export const TestData = {
+  <%_ pc.testDataFragment.forEach((testData) => { _%>
+    "<%= testData.fileName %>": DATAID.<%= testData.rootDataId %>,
+  <%_ }); _%>
+};
+`;
+    const text = ejs.render(template, data, {});
+    this.write(outputPath, text);
+  }
+
+  private printModel(pc: ProgramCode, outputDir: string) {
+    const data = {
+      pc: pc,
+    };
+    const outputPath = path.join(outputDir, 'model/model.ts');
+    const template = `
 <%_ pc.subTypeDefinitionFragments.forEach((sunTypeDefn) => { %>
   <%_ if (sunTypeDefn.fields.length == 0) { _%>
     // eslint-disable-next-line @typescript-eslint/no-empty-interface
@@ -52,40 +169,139 @@ import { factory } from './factory';
     <%_ }); _%>
   }
 <% }); %>
-
-// データの識別子
-export const DATAID = {
-  <%_ pc.dataIdConstantFragments.forEach((dataId) => { _%>
-    <%= dataId %>: '<%= dataId %>',
-  <%_ }); _%>
-} as const;
-export type DATAID = typeof DATAID[keyof typeof DATAID];
-
-// データ登録
-export function registerData() {
-  <%_ pc.registrationGroupFragments.forEach((group) => { _%>
-    registerGroup<%= group.groupNo %>();
-  <%_ }); _%>
-}
-
-<%_ pc.registrationGroupFragments.forEach((group) => { _%>
-  export function registerGroup<%= group.groupNo %>() {
-    const f = factory;
-    <%_ group.factoryRegistrationFlagments.forEach((fRegister) => { _%>
-      f.register(DATAID.<%= fRegister.objectId.dataId %>, () => {
-        <%- fRegister.text _%>
-      });
-    <%_ }); _%>
-  }
-<%_ }); _%>
-
-export const TestData = {
-  <%_ pc.testDataFragment.forEach((testData) => { _%>
-    "<%= testData.fileName %>": DATAID.<%= testData.rootDataId %>,
-  <%_ }); _%>
-};
 `;
     const text = ejs.render(template, data, {});
+    this.write(outputPath, text);
+  }
+
+  private printFactory(outputDir: string) {
+    const outputPath = path.join(outputDir, 'model/factory.ts');
+    const template = `
+// -------------------------------------------------------
+// データのファクトリー
+//
+// データを関数で登録して、データの関連をノードツリーにして
+// 可視化できるように管理する
+//
+
+export type DataId = string;
+
+export class InvalidArgumentError extends Error {}
+
+// --------------------------------------------
+//
+
+export class DataNode {
+  inheritDataId: DataId | undefined = undefined;
+  properties: DataId[] = [];
+
+  constructor(readonly dataId: DataId) {}
+}
+
+export type Callback = () => unknown;
+
+// DataFactory データのファクトリー
+export interface DataFactory {
+  get(dataId: DataId): unknown;
+  register(dataId: DataId, dataFn: Callback): void;
+  inheritNode(dataId: DataId): unknown;
+  childNode(dataId: DataId): unknown;
+  nodeList(): DataNode[];
+}
+
+class DataFactoryImpl implements DataFactory {
+  private cacheFn = new Map<DataId, Callback>();
+  private cacheData = new Map<DataId, unknown>();
+  private nodes = new Map<DataId, DataNode>();
+  private nodeStack: DataNode[] = [];
+
+  private getData(dataId: DataId): unknown {
+    const data = this.cacheData.get(dataId);
+    if (!data) {
+      throw new InvalidArgumentError(\`\${dataId} は未登録\`);
+    }
+    return data;
+  }
+
+  private getDataFn(dataId: DataId): Callback {
+    const dataFn = this.cacheFn.get(dataId);
+    if (!dataFn) {
+      throw new InvalidArgumentError(\`\${dataId} は未登録\`);
+    }
+    return dataFn;
+  }
+
+  private pushNode(node: DataNode) {
+    this.nodeStack.push(node);
+  }
+
+  private popNode() {
+    this.nodeStack.pop();
+  }
+
+  private lastNode(): DataNode {
+    return this.nodeStack[this.nodeStack.length - 1];
+  }
+
+  private execNode(dataId: DataId): unknown {
+    const dataFn = this.getDataFn(dataId);
+    const node = new DataNode(dataId);
+    this.nodes.set(dataId, node);
+    this.pushNode(node);
+    const data = dataFn();
+    this.popNode();
+    return data;
+  }
+
+  public get(dataId: DataId): unknown {
+    return this.getData(dataId);
+  }
+
+  public register(dataId: DataId, dataFn: Callback) {
+    this.cacheFn.set(dataId, dataFn);
+    const data = this.execNode(dataId);
+    this.cacheData.set(dataId, data);
+  }
+
+  public inheritNode(dataId: DataId): unknown {
+    const node = this.lastNode();
+    node.inheritDataId = dataId;
+    return this.execNode(dataId);
+  }
+
+  public childNode(dataId: DataId): unknown {
+    const node = this.lastNode();
+    let found = false;
+    for (const id of node.properties) {
+      if (id == dataId) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      node.properties.push(dataId);
+    }
+    return this.execNode(dataId);
+  }
+
+  public nodeList(): DataNode[] {
+    const nodes: DataNode[] = [];
+    for (const node of Array.from(this.nodes.values())) {
+      nodes.push(node);
+    }
+    return nodes;
+  }
+}
+
+export const factory = new DataFactoryImpl();
+`;
+    const text = ejs.render(template, {}, {});
+    this.write(outputPath, text);
+  }
+
+  private write(outputPath: string, text: string) {
+    const dir = path.dirname(outputPath);
+    fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(outputPath, text);
     execSync(`eslint ${outputPath} --fix`);
   }
@@ -101,9 +317,21 @@ function primitiveToStr(val: unknown): string {
   return `${val}`;
 }
 
-export class TsRegistrationFlagment extends FactoryRegistrationFlagment {
-  constructor(s: FactoryRegistrationFlagment, readonly text: string) {
+export class TsRegistrationFragment extends FactoryRegistrationFragment {
+  constructor(s: FactoryRegistrationFragment, readonly text: string) {
     super(s.objectId, s.subType, s.dataItems);
+  }
+}
+
+export class TsSubTypeFieldFragment extends SubTypeFieldFragment {
+  constructor(
+    readonly fieldName: string,
+    readonly typeName: string,
+    readonly typeNameSingle: string,
+    readonly jsonName: string,
+    readonly isObject: boolean
+  ) {
+    super(fieldName, typeName, typeNameSingle, jsonName);
   }
 }
 
@@ -136,28 +364,29 @@ export class TsCodeConverter extends AbstractProgramCodeConverter {
     if (field.isArray) {
       typeName = `${typeName}[]`;
     }
-    return new SubTypeFieldFragment(field.fieldName, typeName, typeNameSingle, field.fieldName);
+    const isObject = field.systemType == SystemType.Object;
+    return new TsSubTypeFieldFragment(field.fieldName, typeName, typeNameSingle, field.fieldName, isObject);
   }
 
   convertDataId(dataName: string): string {
     return util.snakeCase(dataName).toUpperCase();
   }
 
-  convertFactoryRegistration(dataSubType: DataSubType): FactoryRegistrationFlagment {
+  convertFactoryRegistration(dataSubType: DataSubType): FactoryRegistrationFragment {
     const s = super.convertFactoryRegistration(dataSubType);
-    const renderText = this.renderFactoryRegistrationFlagment(s);
-    return new TsRegistrationFlagment(s, renderText);
+    const renderText = this.renderFactoryRegistrationFragment(s);
+    return new TsRegistrationFragment(s, renderText);
   }
 
-  private renderFactoryRegistrationFlagment(fr: FactoryRegistrationFlagment): string {
-    if (fr instanceof FactoryRegistrationInheritFlagment) {
+  private renderFactoryRegistrationFragment(fr: FactoryRegistrationFragment): string {
+    if (fr instanceof FactoryRegistrationInheritFragment) {
       return this.renderInheritRegisterString(fr);
     } else {
       return this.renderNewRegisterString(fr);
     }
   }
 
-  private renderNewRegisterString(fr: FactoryRegistrationFlagment): string {
+  private renderNewRegisterString(fr: FactoryRegistrationFragment): string {
     let str = 'return {\n';
     for (const objItem of fr.dataItems) {
       if (objItem instanceof ObjectItemFragment) {
@@ -169,7 +398,7 @@ export class TsCodeConverter extends AbstractProgramCodeConverter {
         }
       } else if (objItem instanceof ObjectArrayFragment) {
         throw new InvalidArgumentError(
-          `renderFactoryRegistrationFlagment ので配列型は、新規にインスタンス化されるタイプなので、配列番号が個別に指定される ObjectArrayFragment はありえない ${objItem.field.fieldName} ${objItem.arrayIndex}`
+          `renderFactoryRegistrationFragment ので配列型は、新規にインスタンス化されるタイプなので、配列番号が個別に指定される ObjectArrayFragment はありえない ${objItem.field.fieldName} ${objItem.arrayIndex}`
         );
       } else if (objItem instanceof ObjectArrayFullFragment) {
         const o = objItem;
@@ -192,7 +421,7 @@ export class TsCodeConverter extends AbstractProgramCodeConverter {
         str += `${o.field.fieldName}: ${pstr},\n`;
       } else if (objItem instanceof PrimitiveArrayFragment) {
         throw new InvalidArgumentError(
-          `renderFactoryRegistrationFlagment ので配列型は、新規にインスタンス化されるタイプなので、配列番号が個別に指定される ObjectArrayFragment はありえない ${objItem.field.fieldName} ${objItem.arrayIndex}`
+          `renderFactoryRegistrationFragment ので配列型は、新規にインスタンス化されるタイプなので、配列番号が個別に指定される ObjectArrayFragment はありえない ${objItem.field.fieldName} ${objItem.arrayIndex}`
         );
       } else if (objItem instanceof PrimitiveArrayFullFragment) {
         const o = objItem;
@@ -214,7 +443,7 @@ export class TsCodeConverter extends AbstractProgramCodeConverter {
     return str;
   }
 
-  private renderInheritRegisterString(fr: FactoryRegistrationInheritFlagment): string {
+  private renderInheritRegisterString(fr: FactoryRegistrationInheritFragment): string {
     let str = `const data = f.inheritNode(DATAID.${fr.inheritObjectId.dataId}) as ${fr.objectId.typeName};\n`;
     for (const objItem of fr.dataItems) {
       if (objItem instanceof ObjectItemFragment) {
