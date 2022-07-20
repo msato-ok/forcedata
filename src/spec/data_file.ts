@@ -253,7 +253,7 @@ export class DataSubType {
     if (sameCount > 0 || notSameCount == 0) {
       if (!this.similar) {
         this.similar = similar;
-      } else if (notSameCount < this.similar.notSameCount) {
+      } else if (notSameCount <= this.similar.notSameCount) {
         this.similar = similar;
       }
     }
