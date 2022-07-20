@@ -27,43 +27,59 @@
 
   <script type="text/javascript" src="force-data.js"></script>
   <script type="text/javascript">
-    var nodeData = [];
-    var edgeData = [];
+    var nodeData = {};
+    var edgeData = {};
     for (var i = 0; i < forceData.length; i++) {
-      nodeData.push({
-        id: forceData[i].dataId,
-        label: forceData[i].dataId
-      });
-      if (forceData[i].inheritDataId && forceData[i].inheritDataId.length > 0) {
-        var from = forceData[i].dataId;
-        var to = forceData[i].inheritDataId;
-        edgeData.push({
+      const fd = forceData[i];
+      nodeData[fd.dataId] = {
+        id: fd.dataId,
+        label: fd.dataId,
+        borderWidth: 1,
+        //size: i % 2 == 1 ? 20 : 1,
+        physics: false,
+        shape: 'dot',
+        font: {
+          size: 10,
+        },
+        size: 15,
+        //margin: 3,
+        mass: 3,
+        opacity: 0.5,
+      };
+    }
+    for (var i = 0; i < forceData.length; i++) {
+      const fd = forceData[i];
+      if (fd.inheritDataId && fd.inheritDataId.length > 0) {
+        var from = fd.dataId;
+        var to = fd.inheritDataId;
+        edgeData[from + '/' + to] = {
           from: from,
           to: to,
           arrows: 'to',
-          mass: 2
-        });
+          width: 5,
+
+        };
+        nodeData[to].size += 5;
+        //nodeData[to].font.size += 3;
+        //nodeData[from].mass += 3;
       }
-      if (forceData[i].properties) {
-        console.log(forceData[i].properties);
-        for (let childId of forceData[i].properties) {
-          edgeData.push({
-            from: forceData[i].dataId,
-            to: childId,
-          });
-          console.log({
-            from: forceData[i].dataId,
-            to: childId,
-          });
+      if (fd.properties) {
+        for (let childId of fd.properties) {
+          var from = fd.dataId;
+          var to = childId;
+          edgeData[from + '/' + to] = {
+            from: from,
+            to: to,
+          };
         }
       }
     }
 
     // create an array with nodes
-    var nodes = new vis.DataSet(nodeData);
+    var nodes = new vis.DataSet(Object.values(nodeData));
 
     // create an array with edges
-    var edges = new vis.DataSet(edgeData);
+    var edges = new vis.DataSet(Object.values(edgeData));
 
     // create a network
     var container = document.getElementById("force-data");
